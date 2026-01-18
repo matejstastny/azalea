@@ -1,0 +1,12 @@
+### macOS ###
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+### Rust ###
+debug/
+target/
+**/*.rs.bk
+*.pdb
