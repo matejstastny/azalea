@@ -1,0 +1,241 @@
+#!/usr/bin/env python3
+
+# --------------------------------------------------------------------------------------------
+# azalea - A Python Minecraft Modpack manager
+# --------------------------------------------------------------------------------------------
+# Author: Matej Stastny
+# Date: 2026-02-14 (YYYY-MM-DD)
+# License: MIT
+# Link: https://github.com/matejstastny/azalea
+# --------------------------------------------------------------------------------------------
+
+import argparse, json, os, sys, shutil, zipfile, hashlib
+from pathlib import Path
+from urllib.request import urlopen, Request
+
+BASE = Path(".")
+CONFIG = BASE / "azalea.json"
+MODS = BASE / "mods"
+OVERRIDES = BASE / "overrides"
+
+API = "https://api.modrinth.com/v2"
+
+# ---------------- UTIL ----------------
+
+
+def http_json(url):
+    req = Request(url, headers={"User-Agent": "azalea/0.1"})
+    with urlopen(req) as r:
+        return json.loads(r.read().decode())
+
+
+def ensure_dirs():
+    MODS.mkdir(exist_ok=True)
+    OVERRIDES.mkdir(exist_ok=True)
+
+
+def load_config():
+    if not CONFIG.exists():
+        sys.exit("Not an Azalea pack. Run `azalea init`.")
+    return json.loads(CONFIG.read_text())
+
+
+def save_json(path, data):
+    path.write_text(json.dumps(data, indent=2))
+
+
+# ---------------- MODRINTH ----------------
+
+
+def resolve_project(user_input):
+    if "modrinth.com" in user_input:
+        slug = user_input.rstrip("/").split("/")[-1]
+    else:
+        slug = user_input
+    return http_json(f"{API}/project/{slug}")
+
+
+def find_best_version(project_id, mc, loader):
+    versions = http_json(f"{API}/project/{project_id}/version")
+    matches = [
+        v for v in versions if mc in v["game_versions"] and loader in v["loaders"]
+    ]
+    if not matches:
+        return None
+    return matches[0]
+
+
+# ---------------- INSTALL ----------------
+
+
+def install_mod(identifier, installed=None):
+    if installed is None:
+        installed = set()
+
+    cfg = load_config()
+    mc, loader = cfg["minecraft_version"], cfg["loader"]
+
+    proj = resolve_project(identifier)
+    pid, slug = proj["id"], proj["slug"]
+
+    if slug in installed:
+        return
+    installed.add(slug)
+
+    version = find_best_version(pid, mc, loader)
+    if not version:
+        print(f"No compatible version for {slug}")
+        return
+
+    file = version["files"][0]
+
+    deps = [
+        d["project_id"]
+        for d in version["dependencies"]
+        if d["dependency_type"] == "required"
+    ]
+
+    data = {
+        "project_id": pid,
+        "slug": slug,
+        "version_id": version["id"],
+        "version_number": version["version_number"],
+        "side": version.get("requested_status", "both"),
+        "file": {
+            "url": file["url"],
+            "filename": file["filename"],
+            "sha512": file["hashes"]["sha512"],
+        },
+        "dependencies": deps,
+    }
+
+    save_json(MODS / f"{slug}.json", data)
+    print(f"✔ Installed {slug}")
+
+    for dep in deps:
+        install_mod(dep, installed)
+
+
+# ---------------- REMOVE ----------------
+
+
+def remove_mod(slug):
+    p = MODS / f"{slug}.json"
+    if not p.exists():
+        print("Not installed")
+        return
+    p.unlink()
+    print(f"Removed {slug}")
+
+
+# ---------------- CHECK ----------------
+
+
+def check(target_mc):
+    cfg = load_config()
+    loader = cfg["loader"]
+
+    for f in MODS.glob("*.json"):
+        mod = json.loads(f.read_text())
+        versions = http_json(f"{API}/project/{mod['project_id']}/version")
+        ok = any(
+            target_mc in v["game_versions"] and loader in v["loaders"] for v in versions
+        )
+        print(f"{mod['slug']}: {'OK' if ok else 'BLOCKED'}")
+
+
+# ---------------- EXPORT ----------------
+
+
+def export(path):
+    cfg = load_config()
+
+    manifest = {
+        "formatVersion": 1,
+        "game": "minecraft",
+        "versionId": cfg["version"],
+        "name": cfg["name"],
+        "files": [],
+    }
+
+    for f in MODS.glob("*.json"):
+        mod = json.loads(f.read_text())
+        manifest["files"].append(
+            {
+                "path": f"mods/{mod['file']['filename']}",
+                "hashes": {"sha512": mod["file"]["sha512"]},
+                "downloads": [mod["file"]["url"]],
+                "fileSize": 0,
+            }
+        )
+
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("modrinth.index.json", json.dumps(manifest, indent=2))
+
+        if OVERRIDES.exists():
+            for file in OVERRIDES.rglob("*"):
+                if file.is_file():
+                    z.write(file, f"overrides/{file.relative_to(OVERRIDES)}")
+
+    print(f"Exported {path}")
+
+
+# ---------------- INIT ----------------
+
+
+def init():
+    if CONFIG.exists():
+        print("Already initialized.")
+        return
+    ensure_dirs()
+    data = {
+        "name": "My Pack",
+        "author": "",
+        "version": "1.0.0",
+        "minecraft_version": "1.21.1",
+        "loader": "fabric",
+        "loader_version": "",
+    }
+    save_json(CONFIG, data)
+    print("Azalea pack initialized.")
+
+
+# ---------------- CLI ----------------
+
+
+def main():
+    p = argparse.ArgumentParser(prog="azalea")
+    sub = p.add_subparsers(dest="cmd")
+
+    sub.add_parser("init")
+
+    a = sub.add_parser("add")
+    a.add_argument("mod")
+
+    r = sub.add_parser("remove")
+    r.add_argument("slug")
+
+    c = sub.add_parser("check")
+    c.add_argument("mc")
+
+    e = sub.add_parser("export")
+    e.add_argument("file")
+
+    args = p.parse_args()
+
+    if args.cmd == "init":
+        init()
+    elif args.cmd == "add":
+        install_mod(args.mod)
+    elif args.cmd == "remove":
+        remove_mod(args.slug)
+    elif args.cmd == "check":
+        check(args.mc)
+    elif args.cmd == "export":
+        export(args.file)
+    else:
+        p.print_help()
+
+
+if __name__ == "__main__":
+    main()

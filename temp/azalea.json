@@ -1,0 +1,8 @@
+{
+  "name": "My Pack",
+  "author": "",
+  "version": "1.0.0",
+  "minecraft_version": "1.21.1",
+  "loader": "fabric",
+  "loader_version": ""
+}
