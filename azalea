@@ -177,6 +177,46 @@ def find_best_version(project_id, mc, loader):
     return matches[0]
 
 
+# ---------------- MINECRAFT VERSION RESOLUTION ----------------
+
+
+def get_release_versions():
+    """Return list of released Minecraft versions from Modrinth."""
+    data = http_json(f"{API}/tag/game_version")
+    # Only keep real releases (no snapshots/experiments)
+    releases = [v for v in data if v.get("version_type") == "release"]
+    return releases
+
+
+def resolve_target_mc(user_arg):
+    """
+    Validate the user-supplied version or resolve 'latest'.
+    Returns a valid Minecraft release version string or exits.
+    """
+    releases = get_release_versions()
+    if not releases:
+        log_err("Failed to fetch Minecraft version list from Modrinth")
+        sys.exit(1)
+
+    if user_arg.lower() == "latest":
+        latest = max(releases, key=lambda v: v.get("date_published", ""))
+        version = latest["version"]
+        log_info(f"Resolved latest Minecraft release: {version}")
+        return version
+
+    parts = user_arg.split(".")
+    if not all(p.isdigit() for p in parts):
+        log_err("Invalid Minecraft version format. Use versions like 1.21 or 1.21.1")
+        sys.exit(1)
+
+    valid_versions = {v["version"] for v in releases}
+    if user_arg not in valid_versions:
+        log_err(f"Minecraft version '{user_arg}' is not a valid released version")
+        sys.exit(1)
+
+    return user_arg
+
+
 # ---------------- INSTALL ----------------
 
 
@@ -286,17 +326,36 @@ def remove_mod(slug):
 # ---------------- CHECK ----------------
 
 
-def check(target_mc):
+def check(user_arg):
     cfg = load_config()
     loader = cfg["loader"]
 
+    target_mc = resolve_target_mc(user_arg)
+
+    incompatible = []
+
     for f in MODS.glob("*.json"):
         mod = json.loads(f.read_text())
-        versions = http_json(f"{API}/project/{mod['project_id']}/version")
-        ok = any(
-            target_mc in v["game_versions"] and loader in v["loaders"] for v in versions
+        pid = mod["project_id"]
+        slug = mod["slug"]
+
+        spinner(f"Checking {slug}", duration=0.2)
+
+        versions = http_json(f"{API}/project/{pid}/version")
+
+        compatible = any(
+            target_mc in v.get("game_versions", []) and loader in v.get("loaders", [])
+            for v in versions
         )
-        log_info(f"{mod['slug']}: {'OK' if ok else 'BLOCKED'}")
+
+        if not compatible:
+            incompatible.append(slug)
+
+    if incompatible:
+        for slug in incompatible:
+            print(f"{slug} — no version available for Minecraft {target_mc}")
+    else:
+        log_ok(f"All mods support Minecraft {target_mc}")
 
 
 # ---------------- EXPORT ----------------
