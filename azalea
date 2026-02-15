@@ -9,7 +9,7 @@
 # Link: https://github.com/matejstastny/azalea
 # --------------------------------------------------------------------------------------------
 
-import argparse, json, os, sys, shutil, zipfile, hashlib
+import argparse, json, os, sys, shutil, zipfile, hashlib, time
 from pathlib import Path
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError
@@ -29,19 +29,44 @@ class Log:
 
 
 def log_info(msg):
-    print(f"{Log.CYAN}ℹ️  {msg}{Log.RESET}")
+    print(f"{Log.CYAN} {msg}{Log.RESET}")
 
 
 def log_ok(msg):
-    print(f"{Log.GREEN}✅ {msg}{Log.RESET}")
+    print(f"{Log.GREEN} {msg}{Log.RESET}")
 
 
 def log_warn(msg):
-    print(f"{Log.YELLOW}⚠️  {msg}{Log.RESET}")
+    print(f"{Log.YELLOW} {msg}{Log.RESET}")
 
 
 def log_err(msg):
-    print(f"{Log.RED}❌ {msg}{Log.RESET}")
+    print(f"{Log.RED} {msg}{Log.RESET}")
+
+
+# ---------------- UI HELPERS ----------------
+
+
+def clear_lines(n):
+    for _ in range(n):
+        sys.stdout.write("\033[1A")
+        sys.stdout.write("\033[2K")
+    sys.stdout.flush()
+
+
+def spinner(msg, duration=0.6):
+    frames = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+    end = time.time() + duration
+    i = 0
+    while time.time() < end:
+        sys.stdout.write(f"\r{Log.BLUE}{frames[i % len(frames)]} {msg}{Log.RESET}")
+        sys.stdout.flush()
+        time.sleep(0.05)
+        i += 1
+    # Finish spinner on its own line so later logs don't overwrite it
+    sys.stdout.write("\r")
+    sys.stdout.write("\033[2K")
+    print(f"{Log.BLUE}󱗾 {msg}{Log.RESET}")
 
 
 BASE = Path(".")
@@ -84,20 +109,32 @@ def search_projects(query):
     hits = data.get("hits", [])
 
     if not hits:
-        log_warn("No matching projects found.")
+        log_warn("No matching projects found")
         return None
+
+    spinner("Searching Modrinth…")
+    spinner("Fetching results…")
 
     log_info("Select a project:")
     for i, h in enumerate(hits, 1):
         title = h.get("title") or h.get("slug")
-        print(f"  {i}) {title}")
+        print(f"  {Log.BOLD}{i}){Log.RESET} {title}")
+
+    printed_lines = len(hits) + 1
 
     while True:
         choice = input("Enter number (or press Enter to cancel): ").strip()
         if not choice:
             return None
         if choice.isdigit() and 1 <= int(choice) <= len(hits):
-            return hits[int(choice) - 1]
+            selected = hits[int(choice) - 1]
+            title = selected.get("title") or selected.get("slug")
+
+            # Remove the printed list for a cleaner modern CLI feel
+            clear_lines(printed_lines + 1)
+
+            log_ok(f"Selected: {title}")
+            return selected
         log_warn("Invalid selection.")
 
 
@@ -116,13 +153,14 @@ def resolve_project(user_input):
 
     result = search_projects(slug)
     if not result:
-        log_err("No project selected.")
+        log_err("No project selected")
         sys.exit(1)
 
     return http_json(f"{API}/project/{result['project_id']}")
 
 
 def find_best_version(project_id, mc, loader):
+    spinner("Resolving compatible version")
     versions = http_json(f"{API}/project/{project_id}/version")
     matches = [
         v for v in versions if mc in v["game_versions"] and loader in v["loaders"]
@@ -142,6 +180,7 @@ def install_mod(identifier, installed=None):
     cfg = load_config()
     mc, loader = cfg["minecraft_version"], cfg["loader"]
 
+    spinner("Resolving project")
     proj = resolve_project(identifier)
     pid, slug = proj["id"], proj["slug"]
 
@@ -236,6 +275,8 @@ def export(path):
             }
         )
 
+    spinner("Building mrpack archive", duration=0.8)
+
     with zipfile.ZipFile(path, "w") as z:
         z.writestr("modrinth.index.json", json.dumps(manifest, indent=2))
 
@@ -252,7 +293,7 @@ def export(path):
 
 def init():
     if CONFIG.exists():
-        log_warn("Already initialized.")
+        log_warn("Already initialized")
         return
     ensure_dirs()
     data = {
@@ -264,7 +305,7 @@ def init():
         "loader_version": "",
     }
     save_json(CONFIG, data)
-    log_ok("Azalea pack initialized.")
+    log_ok("Azalea pack initialized")
 
 
 # ---------------- CLI ----------------
@@ -276,32 +317,37 @@ def main():
 
     sub.add_parser("init")
 
-    a = sub.add_parser("add")
-    a.add_argument("mod")
+    a = sub.add_parser("add", help="Add a Modrinth mod")
+    a.add_argument("mod", help="Mod name")
 
-    r = sub.add_parser("remove")
-    r.add_argument("slug")
+    r = sub.add_parser("remove", help="Remove Modrinth mod")
+    r.add_argument("slug", help="Mod slug")
 
-    c = sub.add_parser("check")
-    c.add_argument("mc")
+    c = sub.add_parser(
+        "check", help="Check if the modpack is compatible with a Minecraft version"
+    )
+    c.add_argument("mc", help="Target Minecraft version")
 
-    e = sub.add_parser("export")
+    e = sub.add_parser("export", help="Export to a .mrPack")
     e.add_argument("file")
 
     args = p.parse_args()
 
-    if args.cmd == "init":
-        init()
-    elif args.cmd == "add":
-        install_mod(args.mod)
-    elif args.cmd == "remove":
-        remove_mod(args.slug)
-    elif args.cmd == "check":
-        check(args.mc)
-    elif args.cmd == "export":
-        export(args.file)
-    else:
-        p.print_help()
+    try:
+        if args.cmd == "init":
+            init()
+        elif args.cmd == "add":
+            install_mod(args.mod)
+        elif args.cmd == "remove":
+            remove_mod(args.slug)
+        elif args.cmd == "check":
+            check(args.mc)
+        elif args.cmd == "export":
+            export(args.file)
+        else:
+            p.print_help()
+    except KeyboardInterrupt:
+        sys.exit(0)
 
 
 if __name__ == "__main__":
