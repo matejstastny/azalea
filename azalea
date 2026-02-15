@@ -12,6 +12,37 @@
 import argparse, json, os, sys, shutil, zipfile, hashlib
 from pathlib import Path
 from urllib.request import urlopen, Request
+from urllib.error import HTTPError
+from urllib.parse import quote
+
+# ---------------- LOGGING ----------------
+
+
+class Log:
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    BLUE = "\033[34m"
+    CYAN = "\033[36m"
+
+
+def log_info(msg):
+    print(f"{Log.CYAN}ℹ️  {msg}{Log.RESET}")
+
+
+def log_ok(msg):
+    print(f"{Log.GREEN}✅ {msg}{Log.RESET}")
+
+
+def log_warn(msg):
+    print(f"{Log.YELLOW}⚠️  {msg}{Log.RESET}")
+
+
+def log_err(msg):
+    print(f"{Log.RED}❌ {msg}{Log.RESET}")
+
 
 BASE = Path(".")
 CONFIG = BASE / "azalea.json"
@@ -47,12 +78,48 @@ def save_json(path, data):
 # ---------------- MODRINTH ----------------
 
 
+def search_projects(query):
+    """Search Modrinth and interactively ask the user to choose."""
+    data = http_json(f"{API}/search?query={quote(query)}&limit=10")
+    hits = data.get("hits", [])
+
+    if not hits:
+        log_warn("No matching projects found.")
+        return None
+
+    log_info("Select a project:")
+    for i, h in enumerate(hits, 1):
+        title = h.get("title") or h.get("slug")
+        print(f"  {i}) {title}")
+
+    while True:
+        choice = input("Enter number (or press Enter to cancel): ").strip()
+        if not choice:
+            return None
+        if choice.isdigit() and 1 <= int(choice) <= len(hits):
+            return hits[int(choice) - 1]
+        log_warn("Invalid selection.")
+
+
 def resolve_project(user_input):
+    # If URL, extract slug
     if "modrinth.com" in user_input:
         slug = user_input.rstrip("/").split("/")[-1]
     else:
         slug = user_input
-    return http_json(f"{API}/project/{slug}")
+
+    try:
+        return http_json(f"{API}/project/{slug}")
+    except HTTPError as e:
+        if e.code != 404:
+            raise
+
+    result = search_projects(slug)
+    if not result:
+        log_err("No project selected.")
+        sys.exit(1)
+
+    return http_json(f"{API}/project/{result['project_id']}")
 
 
 def find_best_version(project_id, mc, loader):
@@ -84,7 +151,7 @@ def install_mod(identifier, installed=None):
 
     version = find_best_version(pid, mc, loader)
     if not version:
-        print(f"No compatible version for {slug}")
+        log_err(f"No compatible version for {slug}")
         return
 
     file = version["files"][0]
@@ -110,7 +177,7 @@ def install_mod(identifier, installed=None):
     }
 
     save_json(MODS / f"{slug}.json", data)
-    print(f"✔ Installed {slug}")
+    log_ok(f"Installed {slug}")
 
     for dep in deps:
         install_mod(dep, installed)
@@ -122,10 +189,10 @@ def install_mod(identifier, installed=None):
 def remove_mod(slug):
     p = MODS / f"{slug}.json"
     if not p.exists():
-        print("Not installed")
+        log_warn("Not installed")
         return
     p.unlink()
-    print(f"Removed {slug}")
+    log_info(f"Removed {slug}")
 
 
 # ---------------- CHECK ----------------
@@ -141,7 +208,7 @@ def check(target_mc):
         ok = any(
             target_mc in v["game_versions"] and loader in v["loaders"] for v in versions
         )
-        print(f"{mod['slug']}: {'OK' if ok else 'BLOCKED'}")
+        log_info(f"{mod['slug']}: {'OK' if ok else 'BLOCKED'}")
 
 
 # ---------------- EXPORT ----------------
@@ -177,7 +244,7 @@ def export(path):
                 if file.is_file():
                     z.write(file, f"overrides/{file.relative_to(OVERRIDES)}")
 
-    print(f"Exported {path}")
+    log_ok(f"Exported {path}")
 
 
 # ---------------- INIT ----------------
@@ -185,7 +252,7 @@ def export(path):
 
 def init():
     if CONFIG.exists():
-        print("Already initialized.")
+        log_warn("Already initialized.")
         return
     ensure_dirs()
     data = {
@@ -197,7 +264,7 @@ def init():
         "loader_version": "",
     }
     save_json(CONFIG, data)
-    print("Azalea pack initialized.")
+    log_ok("Azalea pack initialized.")
 
 
 # ---------------- CLI ----------------
