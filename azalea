@@ -180,7 +180,7 @@ def find_best_version(project_id, mc, loader):
 # ---------------- INSTALL ----------------
 
 
-def install_mod(identifier, installed=None):
+def install_mod(identifier, installed=None, explicit=True):
     if installed is None:
         installed = set()
 
@@ -192,6 +192,13 @@ def install_mod(identifier, installed=None):
     pid, slug = proj["id"], proj["slug"]
 
     if slug in installed:
+        existing = MODS / f"{slug}.json"
+        if explicit and existing.exists():
+            data = json.loads(existing.read_text())
+            if not data.get("explicit", False):
+                data["explicit"] = True
+                save_json(existing, data)
+                log_info(f"Promoted {slug} to explicit mod")
         return
     installed.add(slug)
 
@@ -219,6 +226,7 @@ def install_mod(identifier, installed=None):
             "filename": file["filename"],
             "sha512": file["hashes"]["sha512"],
         },
+        "explicit": explicit,
         "dependencies": deps,
     }
 
@@ -226,10 +234,40 @@ def install_mod(identifier, installed=None):
     log_ok(f"Installed {slug}")
 
     for dep in deps:
-        install_mod(dep, installed)
+        install_mod(dep, installed, explicit=False)
 
 
 # ---------------- REMOVE ----------------
+
+
+def prune_unused_deps():
+    """Remove mods that are only dependencies and no longer required."""
+    mods = []
+    for f in MODS.glob("*.json"):
+        mods.append(json.loads(f.read_text()))
+
+    by_id = {m["project_id"]: m for m in mods}
+    needed = set(m["project_id"] for m in mods if m.get("explicit"))
+
+    stack = list(needed)
+    while stack:
+        cur = stack.pop()
+        mod = by_id.get(cur)
+        if not mod:
+            continue
+        for dep in mod.get("dependencies", []):
+            if dep not in needed:
+                needed.add(dep)
+                stack.append(dep)
+
+    removed = []
+    for f in MODS.glob("*.json"):
+        data = json.loads(f.read_text())
+        if data["project_id"] not in needed:
+            f.unlink()
+            removed.append(data["slug"])
+
+    return removed
 
 
 def remove_mod(slug):
@@ -239,6 +277,10 @@ def remove_mod(slug):
         return
     p.unlink()
     log_info(f"Removed {slug}")
+
+    removed = prune_unused_deps()
+    if removed:
+        log_info("Pruned unused dependencies: " + ", ".join(removed))
 
 
 # ---------------- CHECK ----------------
