@@ -100,6 +100,13 @@ def save_json(path, data):
     path.write_text(json.dumps(data, indent=2))
 
 
+def safe_name(s):
+    """Make a filesystem-safe name."""
+    keep = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_ ."
+    cleaned = "".join(c if c in keep else "-" for c in s)
+    return "-".join(cleaned.strip().split())
+
+
 # ---------------- MODRINTH ----------------
 
 
@@ -253,8 +260,18 @@ def check(target_mc):
 # ---------------- EXPORT ----------------
 
 
-def export(path):
+def export():
     cfg = load_config()
+
+    out_dir = BASE / "dist"
+    out_dir.mkdir(exist_ok=True)
+
+    pack_name = safe_name(cfg.get("name", "pack"))
+    pack_ver = safe_name(cfg.get("version", "0"))
+    mc_ver = safe_name(cfg.get("minecraft_version", "mc"))
+
+    filename = f"{pack_name}-{pack_ver}-mc{mc_ver}.mrpack"
+    path = out_dir / filename
 
     manifest = {
         "formatVersion": 1,
@@ -328,8 +345,7 @@ def main():
     )
     c.add_argument("mc", help="Target Minecraft version")
 
-    e = sub.add_parser("export", help="Export to a .mrPack")
-    e.add_argument("file")
+    sub.add_parser("export", help="Export to dist/ with auto name")
 
     args = p.parse_args()
 
@@ -343,7 +359,7 @@ def main():
         elif args.cmd == "check":
             check(args.mc)
         elif args.cmd == "export":
-            export(args.file)
+            export()
         else:
             p.print_help()
     except KeyboardInterrupt:
