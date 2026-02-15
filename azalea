@@ -63,7 +63,6 @@ def spinner(msg, duration=0.6):
         sys.stdout.flush()
         time.sleep(0.05)
         i += 1
-    # Finish spinner on its own line so later logs don't overwrite it
     sys.stdout.write("\r")
     sys.stdout.write("\033[2K")
     print(f"{Log.BLUE}󱗾 {msg}{Log.RESET}")
@@ -137,7 +136,6 @@ def search_projects(query):
             selected = hits[int(choice) - 1]
             title = selected.get("title") or selected.get("slug")
 
-            # Remove the printed list for a cleaner modern CLI feel
             clear_lines(printed_lines + 1)
 
             log_ok(f"Selected: {title}")
@@ -146,7 +144,6 @@ def search_projects(query):
 
 
 def resolve_project(user_input):
-    # If URL, extract slug
     if "modrinth.com" in user_input:
         slug = user_input.rstrip("/").split("/")[-1]
     else:
