@@ -181,18 +181,14 @@ def find_best_version(project_id, mc, loader):
 
 
 def get_release_versions():
-    """Return list of released Minecraft versions from Modrinth."""
+    """Return list of major Minecraft versions from Modrinth"""
     data = http_json(f"{API}/tag/game_version")
-    # Only keep real releases (no snapshots/experiments)
     releases = [v for v in data if v.get("version_type") == "release"]
     return releases
 
 
 def resolve_target_mc(user_arg):
-    """
-    Validate the user-supplied version or resolve 'latest'.
-    Returns a valid Minecraft release version string or exits.
-    """
+    """Validate a Minecraft version string/latest"""
     releases = get_release_versions()
     if not releases:
         log_err("Failed to fetch Minecraft version list from Modrinth")
@@ -215,6 +211,30 @@ def resolve_target_mc(user_arg):
         sys.exit(1)
 
     return user_arg
+
+
+def get_latest_release_version():
+    """Return the latest stable Minecraft version string, or None"""
+    try:
+        releases = get_release_versions()
+        if not releases:
+            return None
+        latest = max(releases, key=lambda v: v.get("date_published", ""))
+        return latest.get("version")
+    except Exception:
+        return None
+
+
+def get_latest_fabric_loader(mc_version):
+    """Return the latest compatible Fabric version string, or None"""
+    try:
+        url = f"https://meta.fabricmc.net/v2/versions/loader/{mc_version}"
+        data = http_json(url)
+        if not data:
+            return None
+        return data[0]["loader"]["version"]
+    except Exception:
+        return None
 
 
 # ---------------- INSTALL ----------------
@@ -353,7 +373,7 @@ def check(user_arg):
 
     if incompatible:
         for slug in incompatible:
-            print(f"{slug} — no version available for Minecraft {target_mc}")
+            print(f"{slug} - no version available for Minecraft {target_mc}")
     else:
         log_ok(f"All mods support Minecraft {target_mc}")
 
@@ -413,15 +433,36 @@ def init():
     if CONFIG.exists():
         log_warn("Already initialized")
         return
+
     ensure_dirs()
+
+    mc_version = get_latest_release_version()
+    if not mc_version:
+        mc_version = "1.21"
+        log_warn("Could not resolve latest Minecraft version, using fallback 1.21")
+    else:
+        log_info(f"Using Minecraft {mc_version}")
+
+    # TD: other modloader support (long term goal)
+    loader = "fabric"
+
+    loader_version = get_latest_fabric_loader(mc_version)
+    if not loader_version:
+        loader_version = ""
+        log_warn("Could not resolve compatible Fabric loader version")
+    else:
+        log_info(f"Using Fabric {loader_version}")
+
     data = {
         "name": "My Pack",
-        "author": "",
+        "author": "Created by Azalea",
         "version": "1.0.0",
-        "minecraft_version": "1.21.1",
-        "loader": "fabric",
-        "loader_version": "",
+        "license": "",
+        "minecraft_version": mc_version,
+        "loader": loader,
+        "loader_version": loader_version,
     }
+
     save_json(CONFIG, data)
     log_ok("Azalea pack initialized")
 
