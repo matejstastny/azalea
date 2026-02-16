@@ -298,12 +298,24 @@ def install_mod(identifier, installed=None, explicit=True):
         if d["dependency_type"] == "required"
     ]
 
+    client_supported = proj.get("client_side", "unknown") != "unsupported"
+    server_supported = proj.get("server_side", "unknown") != "unsupported"
+
+    if client_supported and server_supported:
+        side = "both"
+    elif client_supported:
+        side = "client"
+    elif server_supported:
+        side = "server"
+    else:
+        side = "unknown"
+
     data = {
         "project_id": pid,
         "slug": slug,
         "version_id": version["id"],
         "version_number": version["version_number"],
-        "side": version.get("requested_status", "both"),
+        "side": side,
         "file": {
             "url": file["url"],
             "filename": file["filename"],

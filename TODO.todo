@@ -6,7 +6,7 @@ Features:
 
 Bugs:
     ✔ Fix exporting to .mrpack (mc and fabric versions missing in header) @done(26-02-16 11:45)
-    - Fix server/client/both side (currently all `null` in the `json`) @started(26-02-16 11:45)
+    ✔ Fix server/client/both side (currently all `null` in the `json`) @started(26-02-16 11:45) @done(26-02-16 12:53) @lasted(1h8m20s)
 
 Long-term goals:
     - Support other modloaders than fabric
