@@ -1,0 +1,14 @@
+Azalea
+------
+
+Features:
+    - Add `azalea upgrade`
+
+Bugs:
+    - Fix exporting to .mrpack (mc and fabric versions missing in header)
+    - Fix server/client/both side (currently all `null` in the `json`)
+
+Long-term goals:
+    - Support other modloaders than fabric
+    - Fix shader loaders when downloading shaders (currently hardcoded options that don't check if required mod is installed, ex. iris)
+    - Add server-ready export (server export)
