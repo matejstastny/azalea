@@ -98,6 +98,9 @@ def print_version():
 BASE = Path(".")
 CONFIG = BASE / "azalea.json"
 MODS = BASE / "mods"
+RESOURCEPACKS = BASE / "resourcepacks"
+SHADERPACKS = BASE / "shaderpacks"
+DATAPACKS = BASE / "datapacks"
 OVERRIDES = BASE / "overrides"
 
 API = "https://api.modrinth.com/v2"
@@ -113,6 +116,9 @@ def http_json(url):
 
 def ensure_dirs():
     MODS.mkdir(exist_ok=True)
+    RESOURCEPACKS.mkdir(exist_ok=True)
+    SHADERPACKS.mkdir(exist_ok=True)
+    DATAPACKS.mkdir(exist_ok=True)
     OVERRIDES.mkdir(exist_ok=True)
 
 
@@ -133,12 +139,36 @@ def safe_name(s):
     return "-".join(cleaned.strip().split())
 
 
+# ---------------- VERSION MATCHING ----------------
+
+
+def mc_version_matches(target: str, supported: list[str]) -> bool:
+    for v in supported:
+        if v == target:
+            return True
+
+        if v.endswith(".x"):
+            prefix = v[:-2]
+            if target == prefix or target.startswith(prefix + "."):
+                return True
+
+        if target.endswith(".x"):
+            prefix = target[:-2]
+            if v == prefix or v.startswith(prefix + "."):
+                return True
+
+    return False
+
+
 # ---------------- MODRINTH ----------------
 
 
 def search_projects(query):
     """Search Modrinth and interactively ask the user to choose."""
-    data = http_json(f"{API}/search?query={quote(query)}&limit=10")
+    facets = quote(
+        '[["project_type:mod","project_type:resourcepack","project_type:shader","project_type:datapack"]]'
+    )
+    data = http_json(f"{API}/search?query={quote(query)}&limit=10&facets={facets}")
     hits = data.get("hits", [])
 
     if not hits:
@@ -194,7 +224,18 @@ def find_best_version(project_id, mc, loader):
     spinner("Resolving compatible version")
     versions = http_json(f"{API}/project/{project_id}/version")
     matches = [
-        v for v in versions if mc in v["game_versions"] and loader in v["loaders"]
+        v
+        for v in versions
+        if mc_version_matches(mc, v.get("game_versions", []))
+        and (
+            not v.get("loaders")
+            or loader in v.get("loaders", [])
+            or "minecraft" in v.get("loaders", [])
+            or "datapack" in v.get("loaders", [])
+            or any(
+                l in v.get("loaders", []) for l in ("iris", "optifine")
+            )  # todo: better shader handeling
+        )
     ]
     if not matches:
         return None
@@ -274,8 +315,22 @@ def install_mod(identifier, installed=None, explicit=True):
     proj = resolve_project(identifier)
     pid, slug = proj["id"], proj["slug"]
 
+    project_type = proj.get("project_type", "mod")
+
+    if project_type == "modpack":
+        log_err(f"{slug} is a modpack, not an installable project type")
+        return
+    elif project_type == "resourcepack":
+        target_dir = RESOURCEPACKS
+    elif project_type == "shader":
+        target_dir = SHADERPACKS
+    elif project_type == "datapack":
+        target_dir = DATAPACKS
+    else:
+        target_dir = MODS
+
     if slug in installed:
-        existing = MODS / f"{slug}.json"
+        existing = target_dir / f"{slug}.json"
         if explicit and existing.exists():
             data = json.loads(existing.read_text())
             if not data.get("explicit", False):
@@ -325,7 +380,7 @@ def install_mod(identifier, installed=None, explicit=True):
         "dependencies": deps,
     }
 
-    save_json(MODS / f"{slug}.json", data)
+    save_json(target_dir / f"{slug}.json", data)
     log_ok(f"Installed {slug}")
 
     for dep in deps:
@@ -399,7 +454,12 @@ def check(user_arg):
         versions = http_json(f"{API}/project/{pid}/version")
 
         compatible = any(
-            target_mc in v.get("game_versions", []) and loader in v.get("loaders", [])
+            mc_version_matches(target_mc, v.get("game_versions", []))
+            and (
+                not v.get("loaders")
+                or loader in v.get("loaders", [])
+                or "minecraft" in v.get("loaders", [])
+            )
             for v in versions
         )
 
@@ -447,16 +507,22 @@ def export():
         "files": [],
     }
 
-    for f in MODS.glob("*.json"):
-        mod = json.loads(f.read_text())
-        manifest["files"].append(
-            {
-                "path": f"mods/{mod['file']['filename']}",
-                "hashes": {"sha512": mod["file"]["sha512"]},
-                "downloads": [mod["file"]["url"]],
-                "fileSize": 0,
-            }
-        )
+    def add_files_from(dir_path, prefix):
+        for f in dir_path.glob("*.json"):
+            mod = json.loads(f.read_text())
+            manifest["files"].append(
+                {
+                    "path": f"{prefix}/{mod['file']['filename']}",
+                    "hashes": {"sha512": mod["file"]["sha512"]},
+                    "downloads": [mod["file"]["url"]],
+                    "fileSize": 0,
+                }
+            )
+
+    add_files_from(MODS, "mods")
+    add_files_from(RESOURCEPACKS, "resourcepacks")
+    add_files_from(SHADERPACKS, "shaderpacks")
+    add_files_from(DATAPACKS, "datapacks")
 
     spinner("Building mrpack archive", duration=0.8)
 
@@ -539,7 +605,7 @@ def main():
     )
     c.add_argument("mc", help="Target Minecraft version")
 
-    sub.add_parser("export", help="Export to dist/ with auto name")
+    sub.add_parser("export", help="Export a .mrpack to dist/")
 
     args = p.parse_args()
 
