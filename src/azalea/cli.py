@@ -271,7 +271,6 @@ def install_mod(identifier, installed=None, explicit=True):
     cfg = load_config()
     mc, loader = cfg["minecraft_version"], cfg["loader"]
 
-    spinner("Resolving project")
     proj = resolve_project(identifier)
     pid, slug = proj["id"], proj["slug"]
 
@@ -418,11 +417,21 @@ def export():
     filename = f"{pack_name}-{pack_ver}-mc{mc_ver}.mrpack"
     path = out_dir / filename
 
+    deps = {
+        "minecraft": cfg["minecraft_version"],
+    }
+
+    if cfg.get("loader") == "fabric" and cfg.get("loader_version"):
+        deps["fabric-loader"] = cfg["loader_version"]
+    elif cfg.get("loader") and cfg.get("loader_version"):
+        deps[f"{cfg['loader']}-loader"] = cfg["loader_version"]
+
     manifest = {
         "formatVersion": 1,
         "game": "minecraft",
         "versionId": cfg["version"],
         "name": cfg["name"],
+        "dependencies": deps,
         "files": [],
     }
 
