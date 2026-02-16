@@ -1,3 +1,9 @@
 # Azalea
 
-A Minecraft modpack manager cli tool. Work in progress :3
+A Python Minecraft modpack CLI manager. Work in progress :3
+
+Install via `pipx`:
+
+```bash
+pipx install git+https://github.com/matejstastny/azalea.git
+```
