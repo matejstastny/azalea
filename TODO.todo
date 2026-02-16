@@ -5,8 +5,8 @@ Features:
     - Add `azalea upgrade`
 
 Bugs:
-    - Fix exporting to .mrpack (mc and fabric versions missing in header)
-    - Fix server/client/both side (currently all `null` in the `json`)
+    ✔ Fix exporting to .mrpack (mc and fabric versions missing in header) @done(26-02-16 11:45)
+    - Fix server/client/both side (currently all `null` in the `json`) @started(26-02-16 11:45)
 
 Long-term goals:
     - Support other modloaders than fabric
