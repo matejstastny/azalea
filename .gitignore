@@ -5,5 +5,9 @@
 Icon
 ._*
 
+### python ###
+*.egg-info
+__pycache__
+
 ### testing folder ###
 modpack-test

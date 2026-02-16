@@ -7,11 +7,14 @@
 # Link: https://github.com/matejstastny/azalea
 # --------------------------------------------------------------------------------------------
 
-import argparse, json, os, sys, shutil, zipfile, hashlib, time
+import argparse, json, sys, zipfile, time, platform
+
+from importlib.metadata import version, PackageNotFoundError
 from pathlib import Path
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError
 from urllib.parse import quote
+
 
 # ---------------- LOGGING ----------------
 
@@ -66,6 +69,32 @@ def spinner(msg, duration=0.6):
     print(f"{Log.BLUE}󱗾 {msg}{Log.RESET}")
 
 
+def get_version() -> str:
+    try:
+        return version("azalea")
+    except PackageNotFoundError:
+        return "unknown"
+
+
+def print_version():
+    title = f"{Log.BOLD}{Log.CYAN}Azalea CLI ✿{Log.RESET}"
+    v = f"{Log.GREEN}{get_version()}{Log.RESET}"
+    py = f"{Log.YELLOW}{platform.python_version()}{Log.RESET}"
+    plat = f"{Log.BLUE}{platform.system()}-{platform.machine()}{Log.RESET}"
+    url = f"{Log.CYAN}https://github.com/matejstastny/azalea{Log.RESET}"
+
+    block = (
+        f"{title}\n"
+        f"{Log.BOLD}Version   {Log.RESET}: {v}\n"
+        f"{Log.BOLD}Python    {Log.RESET}: {py}\n"
+        f"{Log.BOLD}Platform  {Log.RESET}: {plat}\n"
+        f"{Log.BOLD}Project   {Log.RESET}: {url}"
+    )
+
+    print(block)
+    raise SystemExit(0)
+
+
 BASE = Path(".")
 CONFIG = BASE / "azalea.json"
 MODS = BASE / "mods"
@@ -89,7 +118,7 @@ def ensure_dirs():
 
 def load_config():
     if not CONFIG.exists():
-        sys.exit("Not an Azalea pack. Run `azalea init`.")
+        sys.exit("Not an Azalea pack. Run `azalea init`")
     return json.loads(CONFIG.read_text())
 
 
@@ -469,6 +498,13 @@ def main():
     p = argparse.ArgumentParser(prog="azalea")
     sub = p.add_subparsers(dest="cmd")
 
+    p.add_argument(
+        "-v",
+        "--version",
+        action="store_true",
+        help="Show version information and exit",
+    )
+
     sub.add_parser("init")
 
     a = sub.add_parser("add", help="Add a Modrinth mod")
@@ -487,7 +523,9 @@ def main():
     args = p.parse_args()
 
     try:
-        if args.cmd == "init":
+        if args.version:
+            print_version()
+        elif args.cmd == "init":
             init()
         elif args.cmd == "add":
             install_mod(args.mod)
