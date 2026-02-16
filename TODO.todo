@@ -1,14 +1,33 @@
-Azalea
-------
+Azalea CLI:
+-----------
 
-Features:
-    - Add `azalea upgrade`
+    - Separate the one behemoth `cli.py` into an actuall project structure but ngl I'm lowk lazy
 
-Bugs:
-    ✔ Fix exporting to .mrpack (mc and fabric versions missing in header) @done(26-02-16 11:45)
-    ✔ Fix server/client/both side (currently all `null` in the `json`) @started(26-02-16 11:45) @done(26-02-16 12:53) @lasted(1h8m20s)
+    Features:
+        ✔ Add `azalea upgrade` @started(26-02-16 13:12) @done(26-02-16 13:38) @lasted(26m34s)
+        - Add `azalea list` with the option of a Markdown table format for README's
 
-Long-term goals:
-    - Support other modloaders than fabric
-    - Fix shader loaders when downloading shaders (currently hardcoded options that don't check if required mod is installed, ex. iris)
-    - Add server-ready export (server export)
+    Bugs:
+        ✔ Fix exporting to .mrpack (mc and fabric versions missing in header) @done(26-02-16 11:45)
+        ✔ Fix server/client/both side (currently all `null` in the `json`) @started(26-02-16 11:45) @done(26-02-16 12:53) @lasted(1h8m20s)
+
+    Long-term goals:
+        - Support other modloaders than fabric (if somebody wants it?)
+        - Fix shader loaders when downloading shaders (currently hardcoded options that don't check if required mod is installed, ex. iris)
+        - Add server files export to quickly make servers
+        - Add `azalea publish` maybe? Like publish it to Modrinth and Github would be nice
+
+Miscellaneous:
+--------------
+
+    Repository:
+        - Make a proper README
+        - Add a formatting action
+        - Add a test action
+
+    Formatting:
+        - Add a python formatter or linter
+        - Configure black formatter
+
+    Tests:
+        - Implement tests, add a quick set of commands testing the CLI (done manually rn)

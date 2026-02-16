@@ -41,6 +41,7 @@ class Log:
     YELLOW = "\033[33m"
     BLUE = "\033[34m"
     CYAN = "\033[36m"
+    PURPLE = "\033[0;35m"
 
 
 def log_info(msg):
@@ -57,6 +58,10 @@ def log_warn(msg):
 
 def log_err(msg):
     print(f"{Log.RED} {msg}{Log.RESET}")
+
+
+def log_deb(msg):
+    print(f"{Log.PURPLE}󰨰 {msg}{Log.RESET}")
 
 
 # ---------------- UI HELPERS ----------------
@@ -582,6 +587,79 @@ def init():
     log_ok("Azalea pack initialized")
 
 
+# ---------------- UPGRADE ----------------
+
+
+def upgrade(target_mc_arg=None):
+    cfg = load_config()
+    current_mc = cfg["minecraft_version"]
+    loader = cfg["loader"]
+    loader_ver = cfg["loader_version"]
+
+    if target_mc_arg:
+        target_mc = resolve_target_mc(target_mc_arg)
+    else:
+        spinner("Resolving latest Minecraft version")
+        latest = get_latest_release_version()
+        if not latest:
+            log_err("Could not resolve latest Minecraft version")
+            return
+        target_mc = latest
+
+    if target_mc == current_mc:
+        log_warn(f"Pack already on Minecraft {current_mc}")
+        return
+
+    spinner(f"Checking upgrade compatibility: {current_mc} → {target_mc}")
+
+    incompatible = []
+
+    for f in MODS.glob("*.json"):
+        mod = json.loads(f.read_text())
+        pid = mod["project_id"]
+        slug = mod["slug"]
+
+        spinner(f"Checking {slug}", duration=0.2)
+
+        versions = http_json(f"{API}/project/{pid}/version")
+
+        compatible = any(
+            mc_version_matches(target_mc, v.get("game_versions", []))
+            and (
+                not v.get("loaders")
+                or loader in v.get("loaders", [])
+                or "minecraft" in v.get("loaders", [])
+            )
+            for v in versions
+        )
+
+        if not compatible:
+            incompatible.append(slug)
+
+    if incompatible:
+        log_err("Upgrade blocked. These mods have no compatible version:")
+        for slug in incompatible:
+            print(f"  - {slug}")
+        return
+
+    cfg["minecraft_version"] = target_mc
+
+    # todo: implement when more loaders implemented
+    if loader == "fabric":
+        new_loader = get_latest_fabric_loader(target_mc)
+
+        if new_loader == loader_ver:
+            log_info("Fabric version already latest")
+        if new_loader:
+            cfg["loader_version"] = new_loader
+            log_info(f"Updated Fabric loader to {new_loader}")
+        else:
+            log_warn("Could not resolve a Fabric loader for the new version")
+
+    save_json(CONFIG, cfg)
+    log_ok(f"Pack upgraded to Minecraft {target_mc}")
+
+
 # ---------------- CLI ----------------
 
 
@@ -611,6 +689,16 @@ def main():
 
     sub.add_parser("export", help="Export a .mrpack to dist/")
 
+    u = sub.add_parser(
+        "upgrade",
+        help="Upgrade the modpack to latest or specified Minecraft version",
+    )
+    u.add_argument(
+        "mc",
+        nargs="?",
+        help="Target Minecraft version (defaults to latest release)",
+    )
+
     args = p.parse_args()
 
     try:
@@ -626,6 +714,8 @@ def main():
             check(args.mc)
         elif args.cmd == "export":
             export()
+        elif args.cmd == "upgrade":
+            upgrade(args.mc)
         else:
             p.print_help()
     except KeyboardInterrupt:
