@@ -2,7 +2,7 @@ Azalea
 ------
 
 Features:
-    - Add `azalea upgrade`
+    - Add `azalea upgrade` @started(26-02-16 13:12)
 
 Bugs:
     ✔ Fix exporting to .mrpack (mc and fabric versions missing in header) @done(26-02-16 11:45)
