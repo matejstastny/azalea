@@ -1,3 +1,7 @@
 {
-  "recommendations": ["dustypomerleau.rust-syntax", "rust-lang.rust-analyzer"]
+  "recommendations": [
+    "magicstack.magicpython",
+    "ms-python.black-formatter",
+    "donjayamanne.python-extension-pack"
+  ]
 }

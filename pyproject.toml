@@ -1,0 +1,17 @@
+[project]
+name = "azalea"
+version = "0.1.0"
+description = "A Python Minecraft Modpack manager"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+azalea = "azalea.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
