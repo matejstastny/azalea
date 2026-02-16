@@ -133,6 +133,27 @@ def safe_name(s):
     return "-".join(cleaned.strip().split())
 
 
+# ---------------- VERSION MATCHING ----------------
+
+
+def mc_version_matches(target: str, supported: list[str]) -> bool:
+    for v in supported:
+        if v == target:
+            return True
+
+        if v.endswith(".x"):
+            prefix = v[:-2]
+            if target == prefix or target.startswith(prefix + "."):
+                return True
+
+        if target.endswith(".x"):
+            prefix = target[:-2]
+            if v == prefix or v.startswith(prefix + "."):
+                return True
+
+    return False
+
+
 # ---------------- MODRINTH ----------------
 
 
@@ -194,7 +215,14 @@ def find_best_version(project_id, mc, loader):
     spinner("Resolving compatible version")
     versions = http_json(f"{API}/project/{project_id}/version")
     matches = [
-        v for v in versions if mc in v["game_versions"] and loader in v["loaders"]
+        v
+        for v in versions
+        if mc_version_matches(mc, v.get("game_versions", []))
+        and (
+            not v.get("loaders")
+            or loader in v.get("loaders", [])
+            or "minecraft" in v.get("loaders", [])
+        )
     ]
     if not matches:
         return None
@@ -388,7 +416,12 @@ def check(user_arg):
         versions = http_json(f"{API}/project/{pid}/version")
 
         compatible = any(
-            target_mc in v.get("game_versions", []) and loader in v.get("loaders", [])
+            mc_version_matches(target_mc, v.get("game_versions", []))
+            and (
+                not v.get("loaders")
+                or loader in v.get("loaders", [])
+                or "minecraft" in v.get("loaders", [])
+            )
             for v in versions
         )
 
@@ -518,7 +551,7 @@ def main():
     )
     c.add_argument("mc", help="Target Minecraft version")
 
-    sub.add_parser("export", help="Export to dist/ with auto name")
+    sub.add_parser("export", help="Export a .mrpack to dist/")
 
     args = p.parse_args()
 
