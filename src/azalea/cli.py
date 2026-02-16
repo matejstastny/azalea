@@ -16,6 +16,20 @@ from urllib.error import HTTPError
 from urllib.parse import quote
 
 
+# ---------------- CONFIG ----------------
+
+
+BASE = Path(".")
+CONFIG = BASE / "azalea.json"
+MODS = BASE / "mods"
+RESOURCEPACKS = BASE / "resourcepacks"
+SHADERPACKS = BASE / "shaderpacks"
+DATAPACKS = BASE / "datapacks"
+OVERRIDES = BASE / "overrides"
+
+API = "https://api.modrinth.com/v2"
+
+
 # ---------------- LOGGING ----------------
 
 
@@ -94,16 +108,6 @@ def print_version():
     print(block)
     raise SystemExit(0)
 
-
-BASE = Path(".")
-CONFIG = BASE / "azalea.json"
-MODS = BASE / "mods"
-RESOURCEPACKS = BASE / "resourcepacks"
-SHADERPACKS = BASE / "shaderpacks"
-DATAPACKS = BASE / "datapacks"
-OVERRIDES = BASE / "overrides"
-
-API = "https://api.modrinth.com/v2"
 
 # ---------------- UTIL ----------------
 
