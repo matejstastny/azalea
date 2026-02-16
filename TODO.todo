@@ -5,6 +5,7 @@ Azalea CLI:
 
     Features:
         ✔ Add `azalea upgrade` @started(26-02-16 13:12) @done(26-02-16 13:38) @lasted(26m34s)
+        - Add `azalea install -f file.txt` to install all mods from a file @started(26-02-16 15:42)
         - Add `azalea list` with the option of a Markdown table format for README's
 
     Bugs:
