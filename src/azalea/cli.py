@@ -692,6 +692,70 @@ def upgrade(target_mc_arg=None):
     log_ok(f"Pack upgraded to Minecraft {target_mc}")
 
 
+# ---------------- README GENERATION ----------------
+
+
+def readme():
+    readme_path = BASE / "README.md"
+
+    if not readme_path.exists():
+        log_err("README.md not found in project root")
+        return
+
+    content = readme_path.read_text()
+
+    start_tag = "<!-- AZALEA_MODLIST_START -->"
+    end_tag = "<!-- AZALEA_MODLIST_END -->"
+
+    if start_tag not in content:
+        log_err("README start marker missing:")
+        log_err(start_tag)
+        return
+    if end_tag not in content:
+        log_err("README end marker missing:")
+        log_err(end_tag)
+        return
+
+    entries = []
+
+    def collect_from(dir_path, type_name):
+        if not dir_path.exists():
+            return
+        for f in dir_path.glob("*.json"):
+            try:
+                data = json.loads(f.read_text())
+            except Exception:
+                continue
+
+            name = data.get("slug", "unknown")
+            pid = data.get("project_id", "")
+            side = data.get("side", "?")
+            version = data.get("version_number", "?")
+
+            url = f"https://modrinth.com/project/{pid}"
+            entries.append(f"| [{name}]({url}) | {type_name} | {side} | {version} |")
+
+    collect_from(MODS, "mod")
+    collect_from(RESOURCEPACKS, "resourcepack")
+    collect_from(SHADERPACKS, "shader")
+
+    header = [
+        "| Name | Type | Side | Version |",
+        "|------|------|------|---------|",
+    ]
+
+    table_lines = header + sorted(entries, key=str.lower)
+    table_block = "\n".join(table_lines)
+
+    before = content.split(start_tag)[0]
+    after = content.split(end_tag)[1]
+
+    new_content = before + start_tag + "\n" + table_block + "\n" + end_tag + after
+
+    readme_path.write_text(new_content)
+    log_ok("README mod list updated")
+
+
 # ---------------- CLI ----------------
 
 
@@ -725,6 +789,7 @@ def main():
     c.add_argument("mc", help="Target Minecraft version")
 
     sub.add_parser("export", help="Export a .mrpack to dist/")
+    sub.add_parser("readme", help="Update README.md mod table")
 
     u = sub.add_parser(
         "upgrade",
@@ -757,6 +822,8 @@ def main():
             check(args.mc)
         elif args.cmd == "export":
             export()
+        elif args.cmd == "readme":
+            readme()
         elif args.cmd == "upgrade":
             upgrade(args.mc)
         else:
