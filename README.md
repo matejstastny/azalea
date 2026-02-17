@@ -2,6 +2,8 @@
 
 A Python Minecraft modpack CLI manager. Work in progress :3
 
+Currently used by [**Starlight**](https://github.com/matejstastny/starlight)
+
 Install via `pipx`:
 
 ```bash
