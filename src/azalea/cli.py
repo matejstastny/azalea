@@ -396,6 +396,45 @@ def install_mod(identifier, installed=None, explicit=True):
         install_mod(dep, installed, explicit=False)
 
 
+# ---------------- BATCH INSTALL ----------------
+
+
+def install_from_file(file_path: str):
+    p = Path(file_path)
+
+    if not p.exists():
+        log_err(f"File not found: {file_path}")
+        return
+
+    failed = []
+    installed_any = []
+    installed = set()
+
+    for raw in p.read_text().splitlines():
+        line = raw.strip()
+
+        if not line or line.startswith("#"):
+            continue
+        name = line
+
+        try:
+            install_mod(line, installed=installed, explicit=True)
+            installed_any.append(name)
+        except SystemExit:
+            log_err(f"Failed to install {line}")
+            failed.append(name)
+            continue
+        except Exception as e:
+            log_err(f"Failed to install {line}: {e}")
+            failed.append(name)
+            continue
+
+    if installed_any:
+        log_ok(f"Batch install complete: {len(installed_any)} installed")
+    if failed:
+        log_warn(f"{len(failed)} entries failed: " + ", ".join(failed))
+
+
 # ---------------- REMOVE ----------------
 
 
@@ -677,7 +716,12 @@ def main():
     sub.add_parser("init")
 
     a = sub.add_parser("add", help="Add a Modrinth mod")
-    a.add_argument("mod", help="Mod name")
+    a.add_argument("mod", nargs="?", help="Mod name or slug")
+    a.add_argument(
+        "-f",
+        "--file",
+        help="Install mods from file (one per line)",
+    )
 
     r = sub.add_parser("remove", help="Remove Modrinth mod")
     r.add_argument("slug", help="Mod slug")
@@ -707,7 +751,13 @@ def main():
         elif args.cmd == "init":
             init()
         elif args.cmd == "add":
-            install_mod(args.mod)
+            if args.file:
+                install_from_file(args.file)
+            elif args.mod:
+                install_mod(args.mod)
+            else:
+                log_err("Provide a mod slug or use -f <file>")
+                sys.exit(1)
         elif args.cmd == "remove":
             remove_mod(args.slug)
         elif args.cmd == "check":
