@@ -6,7 +6,8 @@ Azalea CLI:
     Features:
         ✔ Add `azalea upgrade` @started(26-02-16 13:12) @done(26-02-16 13:38) @lasted(26m34s)
         ✔ Add `azalea install -f file.txt` to install all mods from a file @started(26-02-16 15:42) @done(26-02-16 16:39) @lasted(57m10s)
-        - Add `azalea list` with the option of a Markdown table format for README's with links and HTML tag detection
+        ✘ Add `azalea list` with the option of a Markdown table format for README's with links and HTML tag detection @cancelled(26-02-16 18:37)
+        ✔ Add `azalea readme` ^ but renamed @started(26-02-16 18:20) @done(26-02-16 18:38) @lasted(18m14s)
 
     Bugs:
         ✔ Fix exporting to .mrpack (mc and fabric versions missing in header) @done(26-02-16 11:45)
