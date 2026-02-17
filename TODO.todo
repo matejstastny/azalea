@@ -11,8 +11,8 @@ Azalea CLI:
     Bugs:
         ✔ Fix exporting to .mrpack (mc and fabric versions missing in header) @done(26-02-16 11:45)
         ✔ Fix server/client/both side (currently all `null` in the `json`) @started(26-02-16 11:45) @done(26-02-16 12:53) @lasted(1h8m20s)
+        ✔ Do not make directories (shaders, datapacks) until they are needed @started(26-02-16 18:00) @done(26-02-16 18:18) @lasted(18m23s)
         - Make azalea able to install resource packs that are below version with a warning
-        - Do not make directories (shaders, datapacks) until they are needed
 
     Long-term goals:
         - Support other modloaders than fabric (if somebody wants it?)
