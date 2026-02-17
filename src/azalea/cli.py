@@ -24,7 +24,6 @@ CONFIG = BASE / "azalea.json"
 MODS = BASE / "mods"
 RESOURCEPACKS = BASE / "resourcepacks"
 SHADERPACKS = BASE / "shaderpacks"
-DATAPACKS = BASE / "datapacks"
 OVERRIDES = BASE / "overrides"
 
 API = "https://api.modrinth.com/v2"
@@ -124,10 +123,6 @@ def http_json(url):
 
 
 def ensure_dirs():
-    MODS.mkdir(exist_ok=True)
-    RESOURCEPACKS.mkdir(exist_ok=True)
-    SHADERPACKS.mkdir(exist_ok=True)
-    DATAPACKS.mkdir(exist_ok=True)
     OVERRIDES.mkdir(exist_ok=True)
 
 
@@ -333,8 +328,6 @@ def install_mod(identifier, installed=None, explicit=True):
         target_dir = RESOURCEPACKS
     elif project_type == "shader":
         target_dir = SHADERPACKS
-    elif project_type == "datapack":
-        target_dir = DATAPACKS
     else:
         target_dir = MODS
 
@@ -389,6 +382,7 @@ def install_mod(identifier, installed=None, explicit=True):
         "dependencies": deps,
     }
 
+    target_dir.mkdir(exist_ok=True)
     save_json(target_dir / f"{slug}.json", data)
     log_ok(f"Installed {slug}")
 
@@ -570,7 +564,6 @@ def export():
     add_files_from(MODS, "mods")
     add_files_from(RESOURCEPACKS, "resourcepacks")
     add_files_from(SHADERPACKS, "shaderpacks")
-    add_files_from(DATAPACKS, "datapacks")
 
     spinner("Building mrpack archive", duration=0.8)
 
