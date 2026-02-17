@@ -692,6 +692,76 @@ def upgrade(target_mc_arg=None):
     log_ok(f"Pack upgraded to Minecraft {target_mc}")
 
 
+# ---------------- UPDATE ALL CONTENT ----------------
+
+
+def update_all():
+    cfg = load_config()
+    mc = cfg["minecraft_version"]
+    loader = cfg["loader"]
+
+    updated = []
+    skipped = []
+    failed = []
+
+    def update_from(dir_path):
+        if not dir_path.exists():
+            return
+
+        for f in dir_path.glob("*.json"):
+            try:
+                data = json.loads(f.read_text())
+                pid = data["project_id"]
+                slug = data.get("slug", pid)
+                current_version = data.get("version_id")
+
+                spinner(f"Checking {slug}", duration=0.2)
+
+                newest = find_best_version(pid, mc, loader)
+                if not newest:
+                    failed.append(slug)
+                    continue
+
+                if newest["id"] == current_version:
+                    skipped.append(slug)
+                    continue
+
+                file_info = newest["files"][0]
+
+                data.update(
+                    {
+                        "version_id": newest["id"],
+                        "version_number": newest.get("version_number", "?"),
+                        "file": {
+                            "url": file_info["url"],
+                            "filename": file_info["filename"],
+                            "sha512": file_info["hashes"]["sha512"],
+                        },
+                        "dependencies": [
+                            d["project_id"]
+                            for d in newest.get("dependencies", [])
+                            if d.get("dependency_type") == "required"
+                        ],
+                    }
+                )
+
+                save_json(f, data)
+                updated.append(slug)
+            except Exception:
+                failed.append(f.stem)
+
+    update_from(MODS)
+    update_from(RESOURCEPACKS)
+    update_from(SHADERPACKS)
+
+    if updated:
+        log_ok(f"Updated {len(updated)} projects: " + ", ".join(updated))
+    if skipped:
+        log_info(f"Already latest: " + ", ".join(skipped))
+    if failed:
+        log_warn(f"Failed to update: " + ", ".join(failed))
+
+
 # ---------------- README GENERATION ----------------
 
 
@@ -790,6 +860,7 @@ def main():
 
     sub.add_parser("export", help="Export a .mrpack to dist/")
     sub.add_parser("readme", help="Update README.md mod table")
+    sub.add_parser("update", help="Update all installed content to latest versions")
 
     u = sub.add_parser(
         "upgrade",
@@ -824,6 +895,8 @@ def main():
             export()
         elif args.cmd == "readme":
             readme()
+        elif args.cmd == "update":
+            update_all()
         elif args.cmd == "upgrade":
             upgrade(args.mc)
         else:
