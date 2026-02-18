@@ -9,11 +9,13 @@ Azalea CLI:
         ✔ Add `azalea install -f file.txt` to install all mods from a file @started(26-02-16 15:42) @done(26-02-16 16:39) @lasted(57m10s)
         ✘ Add `azalea list` with the option of a Markdown table format for README's with links and HTML tag detection @cancelled(26-02-16 18:37)
         ✔ Add `azalea readme` ^ but renamed @started(26-02-16 18:20) @done(26-02-16 18:38) @lasted(18m14s)
+        ✔ Add `azalea update -f` for forced updates meaning all mods get updated even if already latest (nice to have when updating jsons, because they'll get rebuild) @started(26-02-17 18:30) @done(26-02-17 18:45) @lasted(15m11s)
 
     Bugs:
         ✔ Fix exporting to .mrpack (mc and fabric versions missing in header) @done(26-02-16 11:45)
         ✔ Fix server/client/both side (currently all `null` in the `json`) @started(26-02-16 11:45) @done(26-02-16 12:53) @lasted(1h8m20s)
         ✔ Do not make directories (shaders, datapacks) until they are needed @started(26-02-16 18:00) @done(26-02-16 18:18) @lasted(18m23s)
+        ✔ CRITICAL: Modrinth API uploads fail, because my mod info does not inclide SHA1 @started(26-02-17 18:05) @done(26-02-17 18:46) @lasted(41m30s)
         - Make azalea able to install resource packs that are below version with a warning
 
     Long-term goals:
