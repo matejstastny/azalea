@@ -377,6 +377,7 @@ def install_mod(identifier, installed=None, explicit=True):
             "url": file["url"],
             "filename": file["filename"],
             "sha512": file["hashes"]["sha512"],
+            "sha1": file["hashes"].get("sha1"),
         },
         "explicit": explicit,
         "dependencies": deps,
@@ -552,10 +553,15 @@ def export():
     def add_files_from(dir_path, prefix):
         for f in dir_path.glob("*.json"):
             mod = json.loads(f.read_text())
+            hashes = {"sha512": mod["file"]["sha512"]}
+
+            if mod["file"].get("sha1"):
+                hashes["sha1"] = mod["file"]["sha1"]
+
             manifest["files"].append(
                 {
                     "path": f"{prefix}/{mod['file']['filename']}",
-                    "hashes": {"sha512": mod["file"]["sha512"]},
+                    "hashes": hashes,
                     "downloads": [mod["file"]["url"]],
                     "fileSize": 0,
                 }
@@ -695,7 +701,7 @@ def upgrade(target_mc_arg=None):
 # ---------------- UPDATE ALL CONTENT ----------------
 
 
-def update_all():
+def update_all(force=False):
     cfg = load_config()
     mc = cfg["minecraft_version"]
     loader = cfg["loader"]
@@ -722,20 +728,21 @@ def update_all():
                     failed.append(slug)
                     continue
 
-                if newest["id"] == current_version:
+                if newest["id"] == current_version and not force:
                     skipped.append(slug)
                     continue
 
-                file_info = newest["files"][0]
+                file = newest["files"][0]
 
                 data.update(
                     {
                         "version_id": newest["id"],
                         "version_number": newest.get("version_number", "?"),
                         "file": {
-                            "url": file_info["url"],
-                            "filename": file_info["filename"],
-                            "sha512": file_info["hashes"]["sha512"],
+                            "url": file["url"],
+                            "filename": file["filename"],
+                            "sha512": file["hashes"]["sha512"],
+                            "sha1": file["hashes"].get("sha1"),
                         },
                         "dependencies": [
                             d["project_id"]
@@ -860,7 +867,13 @@ def main():
 
     sub.add_parser("export", help="Export a .mrpack to dist/")
     sub.add_parser("readme", help="Update README.md mod table")
-    sub.add_parser("update", help="Update all installed content to latest versions")
+    upd = sub.add_parser("update", help="Update all installed content to latest versions")
+    upd.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help="Force refresh metadata even if already on latest version",
+    )
 
     u = sub.add_parser(
         "upgrade",
@@ -896,7 +909,7 @@ def main():
         elif args.cmd == "readme":
             readme()
         elif args.cmd == "update":
-            update_all()
+            update_all(force=getattr(args, "force", False))
         elif args.cmd == "upgrade":
             upgrade(args.mc)
         else:
