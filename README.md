@@ -2,7 +2,7 @@
 
 # ✿ azalea
 
-**A minimal CLI for managing Minecraft modpacks — powered by Modrinth.**
+**A minimal CLI for managing Minecraft modpacks - powered by Modrinth**
 
 [![Python](https://img.shields.io/badge/python-3.9+-3776AB?logo=python&logoColor=white&style=flat-square)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](LICENSE)
@@ -11,16 +11,16 @@
 
 </div>
 
-<!-- add screenshot here: assets/demo.png -->
+<img src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fminecraft.wiki%2Fimages%2Fthumb%2FFlowering_Azalea_Leaves.png%2F150px-Flowering_Azalea_Leaves.png%3F04e46&f=1&nofb=1&ipt=b992144690df497b30533c16645bfe7c2fcf22e9997304d65839879c17ea9894" alt="Modpack icon" width="20%" align="right">
 
 ## Features
 
 - Search and install mods, resource packs, and shaders directly from Modrinth
-- Automatic dependency resolution
+- Automatic dependency installation and uninstallation
 - Check modpack compatibility before upgrading Minecraft
-- Upgrade to a new MC version with a single command
+- Upgrade to a new Minecraft version with a single command
 - Export to `.mrpack` for use with any Modrinth-compatible launcher
-- Auto-generate a mod table in your project README
+- Auto-generate mod tables in your project `README`
 
 ## Install
 
@@ -88,8 +88,6 @@ azalea export            # build a .mrpack archive in dist/
 The same structure is used for resource packs (`resourcepacks/`) and shaders (`shaderpacks/`).
 </details>
 
----
-
 <div align="center">
-<sub>Used by <a href="https://github.com/matejstastny/starlight">Starlight</a></sub>
+<sub>Used by: <a href="https://github.com/matejstastny/starlight">Starlight</a> <a href="https://github.com/matejstastny/velarium">Velarium</a></sub>
 </div>
