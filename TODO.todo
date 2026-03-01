@@ -1,7 +1,7 @@
 Azalea CLI:
 -----------
 
-    - Separate the one behemoth `cli.py` into an actuall project structure but ngl I'm lowk lazy
+    ✔ Separate the one behemoth `cli.py` into an actuall project structure but ngl I'm lowk lazy @started(26-02-28 16:33) @done(26-02-28 19:57) @lasted(3h24m50s)
 
     Features:
         ✔ Add `azalea update` which will update all the content @started(26-02-16 21:57) @done(26-02-16 22:03) @lasted(6m3s)
