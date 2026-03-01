@@ -446,9 +446,9 @@ def update_all(force=False):
     if updated:
         log_ok(f"Updated {len(updated)} projects: " + ", ".join(updated))
     if skipped:
-        log_info(f"Already latest: " + ", ".join(skipped))
+        log_info("Already latest: " + ", ".join(skipped))
     if failed:
-        log_warn(f"Failed to update: " + ", ".join(failed))
+        log_warn("Failed to update: " + ", ".join(failed))
 
 
 def readme():

@@ -80,7 +80,7 @@ def find_best_version(project_id, mc, loader):
             or "minecraft" in v.get("loaders", [])
             or "datapack" in v.get("loaders", [])
             or any(
-                l in v.get("loaders", []) for l in ("iris", "optifine")
+                loader in v.get("loaders", []) for loader in ("iris", "optifine")
             )  # todo: better shader handeling
         )
     ]
