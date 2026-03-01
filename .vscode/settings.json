@@ -1,0 +1,24 @@
+{
+    "[markdown]": {
+        "editor.formatOnSave": false
+    },
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.codeActionsOnSave": {
+            "source.organizeImports.ruff": "explicit"
+        }
+    },
+    "files.exclude": {
+        // Default
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/.DS_Store": true,
+        "**/Thumbs.db": true,
+        "**/CVS": true,
+        // Python
+        "**/azalea.egg-info": true,
+        "**/__pycache__": true
+    },
+}
