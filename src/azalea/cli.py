@@ -3,18 +3,18 @@
 import argparse
 import sys
 
-from azalea.log import log_err, print_version
 from azalea.commands import (
-    init,
-    install_mod,
-    install_from_file,
-    remove_mod,
     check,
     export,
+    init,
+    install_from_file,
+    install_mod,
     readme,
+    remove_mod,
     update_all,
     upgrade,
 )
+from azalea.log import log_err, print_version
 
 
 def main():
@@ -41,9 +41,7 @@ def main():
     r = sub.add_parser("remove", help="Remove Modrinth mod")
     r.add_argument("slug", help="Mod slug")
 
-    c = sub.add_parser(
-        "check", help="Check if the modpack is compatible with a Minecraft version"
-    )
+    c = sub.add_parser("check", help="Check if the modpack is compatible with a Minecraft version")
     c.add_argument("mc", help="Target Minecraft version")
 
     sub.add_parser("export", help="Export a .mrpack to dist/")

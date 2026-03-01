@@ -1,10 +1,9 @@
 """Logging utilities, spinner, and version display."""
 
+import platform
 import sys
 import time
-import platform
-
-from importlib.metadata import version, PackageNotFoundError
+from importlib.metadata import PackageNotFoundError, version
 
 
 class Log:

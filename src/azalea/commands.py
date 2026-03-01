@@ -2,17 +2,18 @@
 
 import json
 import zipfile
-
 from pathlib import Path
 
-from azalea.config import BASE, CONFIG, MODS, RESOURCEPACKS, SHADERPACKS, OVERRIDES
-from azalea.log import log_info, log_ok, log_warn, log_err, spinner
-from azalea.util import load_config, save_json, safe_name, ensure_overrides_dir
-from azalea.minecraft import get_latest_release_version, get_latest_fabric_loader, resolve_target_mc
-from azalea.modrinth import resolve_project, find_best_version
-from azalea.util import http_json
-from azalea.config import API
-from azalea.minecraft import mc_version_matches
+from azalea.config import API, BASE, CONFIG, MODS, OVERRIDES, RESOURCEPACKS, SHADERPACKS
+from azalea.log import log_err, log_info, log_ok, log_warn, spinner
+from azalea.minecraft import (
+    get_latest_fabric_loader,
+    get_latest_release_version,
+    mc_version_matches,
+    resolve_target_mc,
+)
+from azalea.modrinth import find_best_version, resolve_project
+from azalea.util import ensure_overrides_dir, http_json, load_config, safe_name, save_json
 
 
 def install_mod(identifier, installed=None, explicit=True):
@@ -55,11 +56,7 @@ def install_mod(identifier, installed=None, explicit=True):
 
     file = version["files"][0]
 
-    deps = [
-        d["project_id"]
-        for d in version["dependencies"]
-        if d["dependency_type"] == "required"
-    ]
+    deps = [d["project_id"] for d in version["dependencies"] if d["dependency_type"] == "required"]
 
     client_supported = proj.get("client_side", "unknown") != "unsupported"
     server_supported = proj.get("server_side", "unknown") != "unsupported"

@@ -1,14 +1,13 @@
 """Modrinth API: project search, resolution, and version finding."""
 
 import sys
-
 from urllib.error import HTTPError
 from urllib.parse import quote
 
 from azalea.config import API
-from azalea.log import Log, log_info, log_ok, log_warn, log_err, clear_lines, spinner
-from azalea.util import http_json
+from azalea.log import Log, clear_lines, log_err, log_info, log_ok, log_warn, spinner
 from azalea.minecraft import mc_version_matches
+from azalea.util import http_json
 
 
 def search_projects(query):
