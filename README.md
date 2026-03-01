@@ -11,7 +11,7 @@
 
 </div>
 
-<img src="https://github.com/matejstastny/azalea/blob/main/.github/repo-icon.png?raw=true" alt="Modpack icon" width="20%" align="right">
+<img src="https://github.com/matejstastny/azalea/blob/main/assets/repo-icon.png?raw=true" alt="Azalea icon" width="20%" align="right">
 
 ## Features
 
