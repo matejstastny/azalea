@@ -19,6 +19,7 @@
         "**/CVS": true,
         // Python
         "**/azalea.egg-info": true,
-        "**/__pycache__": true
+        "**/__pycache__": true,
+        "**/.ruff_cache": true
     },
 }
