@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 {
     "[markdown]": {
         "editor.formatOnSave": false
@@ -23,15 +22,3 @@
         "**/__pycache__": true
     },
 }
-||||||| 9e867a3
-=======
-{
-    "[python]": {
-        "editor.formatOnSave": true,
-        "editor.defaultFormatter": "charliermarsh.ruff",
-        "editor.codeActionsOnSave": {
-            "source.organizeImports.ruff": "explicit"
-        }
-    }
-}
->>>>>>> 3b260792b875bc4e889616c07f3a8f7443714d7e
