@@ -11,7 +11,7 @@
 
 </div>
 
-<img src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fminecraft.wiki%2Fimages%2Fthumb%2FFlowering_Azalea_Leaves.png%2F150px-Flowering_Azalea_Leaves.png%3F04e46&f=1&nofb=1&ipt=b992144690df497b30533c16645bfe7c2fcf22e9997304d65839879c17ea9894" alt="Modpack icon" width="20%" align="right">
+<img src="https://github.com/matejstastny/azalea/blob/main/.github/repo-icon.png?raw=true" alt="Modpack icon" width="20%" align="right">
 
 ## Features
 
