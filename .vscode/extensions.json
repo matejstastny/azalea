@@ -1,8 +1,7 @@
 {
-  "recommendations": [
-    "magicstack.magicpython",
-    "ms-python.black-formatter",
-    "donjayamanne.python-extension-pack",
-    "fabiospampinato.vscode-todo-plus"
-  ]
+    "recommendations": [
+        "donjayamanne.python-extension-pack",
+        "fabiospampinato.vscode-todo-plus",
+        "charliermarsh.ruff"
+    ]
 }
