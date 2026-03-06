@@ -9,6 +9,9 @@
             "source.organizeImports.ruff": "explicit"
         }
     },
+    "[todo]": {
+       "editor.wordWrap": "on"
+    },
     "files.exclude": {
         // Default
         "**/.git": true,
