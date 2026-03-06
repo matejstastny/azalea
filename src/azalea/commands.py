@@ -6,7 +6,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from azalea.config import API, BASE, CONFIG, MODS, OVERRIDES, RESOURCEPACKS, SHADERPACKS
-from azalea.log import Log, clear_lines, log_err, log_info, log_ok, log_warn, spinner
+from azalea.log import Log, log_err, log_info, log_ok, log_warn, spinner
 from azalea.minecraft import (
     SUPPORTED_LOADERS,
     get_latest_loader_version,
