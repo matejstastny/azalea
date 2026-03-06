@@ -1,13 +1,13 @@
 """Unit tests for azalea.commands — Modrinth API calls are mocked."""
 
-import json
 import io
+import json
 import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
@@ -20,7 +20,6 @@ from azalea.commands import (
     remove_mod,
     unpin_mod,
 )
-
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
@@ -88,13 +87,17 @@ def _write_json(path: Path, data: dict):
 class TestInstallMod(unittest.TestCase):
     @patch("azalea.commands.find_best_version", return_value=FAKE_VERSION)
     @patch("azalea.commands.resolve_project", return_value=FAKE_PROJECT)
-    @patch("azalea.commands.load_config", return_value={"minecraft_version": "1.21", "loader": "fabric"})
+    @patch(
+        "azalea.commands.load_config",
+        return_value={"minecraft_version": "1.21", "loader": "fabric"},
+    )
     def test_install_creates_json(self, _cfg, _resolve, _find):
         with tempfile.TemporaryDirectory() as td:
             td = Path(td)
 
-            with patch("azalea.commands.MODS", td), patch(
-                "azalea.commands._ALL_CONTENT_DIRS", [(td, "mod")]
+            with (
+                patch("azalea.commands.MODS", td),
+                patch("azalea.commands._ALL_CONTENT_DIRS", [(td, "mod")]),
             ):
                 install_mod("sodium")
 
@@ -112,14 +115,18 @@ class TestInstallMod(unittest.TestCase):
         "azalea.commands.resolve_project",
         return_value={**FAKE_PROJECT, "project_type": "resourcepack", "slug": "some-rp"},
     )
-    @patch("azalea.commands.load_config", return_value={"minecraft_version": "1.21", "loader": "fabric"})
+    @patch(
+        "azalea.commands.load_config",
+        return_value={"minecraft_version": "1.21", "loader": "fabric"},
+    )
     def test_resourcepack_version_fallback(self, _cfg, _resolve, _find, mock_http):
         """Resource packs with no exact match should fall back to latest version with a warning."""
         with tempfile.TemporaryDirectory() as td:
             td = Path(td)
 
-            with patch("azalea.commands.RESOURCEPACKS", td), patch(
-                "azalea.commands._ALL_CONTENT_DIRS", [(td, "resourcepack")]
+            with (
+                patch("azalea.commands.RESOURCEPACKS", td),
+                patch("azalea.commands._ALL_CONTENT_DIRS", [(td, "resourcepack")]),
             ):
                 install_mod("some-rp")
 
@@ -140,8 +147,9 @@ class TestRemoveMod(unittest.TestCase):
             mod_file = td / f"{slug}.json"
             _write_json(mod_file, _mod_data(slug))
 
-            with patch("azalea.commands._ALL_CONTENT_DIRS", [(td, "mod")]), patch(
-                "azalea.commands.MODS", td
+            with (
+                patch("azalea.commands._ALL_CONTENT_DIRS", [(td, "mod")]),
+                patch("azalea.commands.MODS", td),
             ):
                 remove_mod(slug)
 
@@ -191,7 +199,10 @@ class TestPruneUnusedDeps(unittest.TestCase):
 
 class TestCheck(unittest.TestCase):
     @patch("azalea.commands._check_compat", return_value=[])
-    @patch("azalea.commands.load_config", return_value={"minecraft_version": "1.21", "loader": "fabric"})
+    @patch(
+        "azalea.commands.load_config",
+        return_value={"minecraft_version": "1.21", "loader": "fabric"},
+    )
     def test_check_defaults_to_current_version(self, _cfg, mock_compat):
         with patch("azalea.commands.log_ok") as mock_ok:
             check()  # no argument
@@ -200,7 +211,10 @@ class TestCheck(unittest.TestCase):
 
     @patch("azalea.commands._check_compat", return_value=["bad-mod"])
     @patch("azalea.commands.resolve_target_mc", return_value="1.20")
-    @patch("azalea.commands.load_config", return_value={"minecraft_version": "1.21", "loader": "fabric"})
+    @patch(
+        "azalea.commands.load_config",
+        return_value={"minecraft_version": "1.21", "loader": "fabric"},
+    )
     def test_check_with_explicit_version(self, _cfg, _resolve, mock_compat):
         check("1.20")
         mock_compat.assert_called_once_with("1.20", "fabric")
