@@ -18,19 +18,19 @@ class Log:
 
 
 def log_info(msg):
-    print(f"{Log.CYAN} {msg}{Log.RESET}")
+    print(f"{Log.CYAN} {msg}{Log.RESET}")
 
 
 def log_ok(msg):
-    print(f"{Log.GREEN} {msg}{Log.RESET}")
+    print(f"{Log.GREEN} {msg}{Log.RESET}")
 
 
 def log_warn(msg):
-    print(f"{Log.YELLOW} {msg}{Log.RESET}")
+    print(f"{Log.YELLOW} {msg}{Log.RESET}")
 
 
 def log_err(msg):
-    print(f"{Log.RED} {msg}{Log.RESET}")
+    print(f"{Log.RED} {msg}{Log.RESET}")
 
 
 def log_deb(msg):
