@@ -360,6 +360,17 @@ def _field(connector: str, label: str, default: str = "") -> str:
         return default
 
 
+def _draw_field_done(connector: str, label: str, default: str, value: str) -> None:
+    """Print a completed field line (no input, just the value)."""
+    dflt_str = f"({default})" if default else ""
+    print(
+        f"  {Log.CYAN}{connector}{Log.RESET} "
+        f"{Log.BOLD}{label:<8}{Log.RESET} "
+        f"{Log.YELLOW}{dflt_str:<11}{Log.RESET} "
+        f"{Log.CYAN}›{Log.RESET} {value}"
+    )
+
+
 def _pick_mc_version(releases: list) -> str:
     """Tree list of recent MC versions selected by letter; collapses on pick."""
     recent = sorted(
@@ -375,12 +386,10 @@ def _pick_mc_version(releases: list) -> str:
         log_info("Minecraft version:")
         for i, r in enumerate(recent):
             conn = _connector(i, n)
-            print(
-                f"  {Log.CYAN}{conn}{Log.RESET} {Log.BOLD}{_LETTERS[i]}.{Log.RESET} {r['version']}"
-            )
+            print(f"{Log.CYAN}{conn}{Log.RESET} {Log.BOLD}{_LETTERS[i]}){Log.RESET} {r['version']}")
 
         try:
-            raw = input(f"  {Log.CYAN}›{Log.RESET} Enter letter or version: ").strip().lower()
+            raw = input(f"{Log.CYAN} Enter letter or version:{Log.RESET} ").strip().lower()
         except (EOFError, KeyboardInterrupt):
             raw = "a"
 
@@ -410,12 +419,10 @@ def _pick_loader() -> str:
         log_info("Mod loaders:")
         for i, loader in enumerate(SUPPORTED_LOADERS):
             conn = _connector(i, n)
-            print(f"  {Log.CYAN}{conn}{Log.RESET} {loader}")
+            print(f"{Log.CYAN}{conn}{Log.RESET} {loader}")
 
         try:
-            raw = (
-                input(f"  {Log.CYAN}›{Log.RESET} Select loader (default fabric): ").strip().lower()
-            )
+            raw = input(f"{Log.CYAN} Select loader (default fabric):{Log.RESET} ").strip().lower()
         except (EOFError, KeyboardInterrupt):
             raw = ""
 
@@ -443,12 +450,25 @@ def init():
         releases = [{"version": "1.21", "date": "2024-06-13"}]
 
     # ── Pack info block ──────────────────────────────────────────────────────
+    fields = [
+        ("Name", "My Pack"),
+        ("Author", ""),
+        ("Version", "0.1.0"),
+        ("License", ""),
+    ]
+    values = []
+
     save_cursor()
-    log_info("New pack")
-    name = _field("├─", "Name", "My Pack")
-    author = _field("├─", "Author")
-    version = _field("├─", "Version", "0.1.0")
-    license_ = _field("└─", "License")
+    for i, (label, default) in enumerate(fields):
+        restore_cursor_clear()
+        log_info("New pack")
+        for j in range(i):
+            prev_label, prev_default = fields[j]
+            _draw_field_done("├─", prev_label, prev_default, values[j])
+        val = _field("└─", label, default)
+        values.append(val)
+
+    name, author, version, license_ = values
     restore_cursor_clear()
     summary = name
     if author:
