@@ -336,22 +336,22 @@ def export():
     log_ok(f"Exported {path}")
 
 
-def _section(title: str):
-    """Print a wizard section header using the same style as log_info."""
-    print()
-    log_info(title)
-    print()
+_LETTERS = "abcdefghijklmnopqrstuvwxyz"
 
 
-def _prompt(label: str, default: str = "") -> str:
-    """Aligned label prompt with an optional default shown in yellow."""
+def _connector(index: int, total: int) -> str:
+    """Return ├─ for all items except the last, └─ for the last."""
+    return "└─" if index == total - 1 else "├─"
+
+
+def _field(connector: str, label: str, default: str = "") -> str:
+    """Single tree-connected prompt line with an optional default in yellow."""
     dflt_str = f"({default})" if default else ""
-    # widths are for visual alignment; ANSI codes wrap after padding so they
-    # don't affect the measured length of `label` or `dflt_str` themselves.
     prefix = (
-        f"  {Log.BOLD}{label:<9}{Log.RESET}"
-        f" {Log.YELLOW}{dflt_str:<11}{Log.RESET}"
-        f" {Log.CYAN}›{Log.RESET}"
+        f"  {Log.CYAN}{connector}{Log.RESET} "
+        f"{Log.BOLD}{label:<8}{Log.RESET} "
+        f"{Log.YELLOW}{dflt_str:<11}{Log.RESET} "
+        f"{Log.CYAN}›{Log.RESET}"
     )
     try:
         val = input(f"{prefix} ").strip()
@@ -361,69 +361,72 @@ def _prompt(label: str, default: str = "") -> str:
 
 
 def _pick_mc_version(releases: list) -> str:
-    """Show a compact 3-column grid of recent MC versions and return the choice."""
-    # BUG FIX: Modrinth /tag/game_version uses "date" not "date_published";
-    # use .get() with both keys so sorting never raises KeyError.
+    """Tree list of recent MC versions selected by letter; collapses on pick."""
     recent = sorted(
         releases,
         key=lambda v: v.get("date_published") or v.get("date", ""),
         reverse=True,
-    )[:15]
+    )[:10]
     all_valid = {r["version"] for r in releases}
-
-    _section("Minecraft version")
-
-    cols = 3
-    rows = (len(recent) + cols - 1) // cols
-    for r in range(rows):
-        parts = []
-        for c in range(cols):
-            idx = r + c * rows
-            if idx < len(recent):
-                num = idx + 1
-                ver = recent[idx]["version"]
-                parts.append(f"  {Log.BOLD}{num:2}){Log.RESET} {ver:<9}")
-            else:
-                parts.append(" " * 15)
-        print("  " + " ".join(parts))
-    print()
+    n = len(recent)
 
     while True:
-        try:
-            choice = input(f"  {Log.CYAN}›{Log.RESET} ").strip()
-        except (EOFError, KeyboardInterrupt):
-            return recent[0]["version"]
+        save_cursor()
+        log_info("Minecraft version:")
+        for i, r in enumerate(recent):
+            conn = _connector(i, n)
+            print(
+                f"  {Log.CYAN}{conn}{Log.RESET} {Log.BOLD}{_LETTERS[i]}.{Log.RESET} {r['version']}"
+            )
 
-        if not choice:
-            return recent[0]["version"]
-        if choice.isdigit() and 1 <= int(choice) <= len(recent):
-            return recent[int(choice) - 1]["version"]
-        if choice in all_valid:
-            return choice
-        log_warn(f"  Invalid — enter a number (1–{len(recent)}) or a version like 1.21")
+        try:
+            raw = input(f"  {Log.CYAN}›{Log.RESET} Enter letter or version: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            raw = "a"
+
+        if not raw:
+            raw = "a"
+
+        if len(raw) == 1 and raw in _LETTERS[:n]:
+            selected = recent[_LETTERS.index(raw)]["version"]
+        elif raw in all_valid:
+            selected = raw
+        else:
+            restore_cursor_clear()
+            log_warn(f"Enter a letter (a–{_LETTERS[n - 1]}) or a version like 1.21")
+            continue
+
+        restore_cursor_clear()
+        log_info(f"Minecraft version: {selected}")
+        return selected
 
 
 def _pick_loader() -> str:
-    """Show all supported loaders on one row and return the choice."""
-    _section("Loader")
-
-    parts = [
-        f"  {Log.BOLD}{i}){Log.RESET} {loader}" for i, loader in enumerate(SUPPORTED_LOADERS, 1)
-    ]
-    print("  " + "    ".join(parts))
-    print()
+    """Tree list of loaders selected by name; collapses on pick."""
+    n = len(SUPPORTED_LOADERS)
 
     while True:
-        try:
-            choice = input(f"  {Log.CYAN}›{Log.RESET} [1] ").strip() or "1"
-        except (EOFError, KeyboardInterrupt):
-            return SUPPORTED_LOADERS[0]
+        save_cursor()
+        log_info("Mod loaders:")
+        for i, loader in enumerate(SUPPORTED_LOADERS):
+            conn = _connector(i, n)
+            print(f"  {Log.CYAN}{conn}{Log.RESET} {loader}")
 
-        if choice.isdigit() and 1 <= int(choice) <= len(SUPPORTED_LOADERS):
-            return SUPPORTED_LOADERS[int(choice) - 1]
-        if choice in SUPPORTED_LOADERS:
-            return choice
-        log_warn("  Invalid selection")
+        try:
+            raw = (
+                input(f"  {Log.CYAN}›{Log.RESET} Select loader (default fabric): ").strip().lower()
+            )
+        except (EOFError, KeyboardInterrupt):
+            raw = ""
+
+        loader = raw or "fabric"
+        if loader in SUPPORTED_LOADERS:
+            restore_cursor_clear()
+            log_info(f"Mod loader: {loader}")
+            return loader
+
+        restore_cursor_clear()
+        log_warn(f"Invalid — choose from: {', '.join(SUPPORTED_LOADERS)}")
 
 
 def init():
@@ -439,23 +442,27 @@ def init():
         log_warn("Could not fetch Minecraft versions; using fallback 1.21")
         releases = [{"version": "1.21", "date": "2024-06-13"}]
 
-    # Save cursor so the entire wizard block can be collapsed after completion.
+    # ── Pack info block ──────────────────────────────────────────────────────
     save_cursor()
-
     log_info("New pack")
-    print()
+    name = _field("├─", "Name", "My Pack")
+    author = _field("├─", "Author")
+    version = _field("├─", "Version", "0.1.0")
+    license_ = _field("└─", "License")
+    restore_cursor_clear()
+    summary = name
+    if author:
+        summary += f"  ·  {author}"
+    summary += f"  ·  v{version}"
+    log_ok(summary)
 
-    name = _prompt("Name", "My Pack")
-    author = _prompt("Author")
-    version = _prompt("Version", "0.1.0")
-    license_ = _prompt("License")
-
+    # ── Minecraft version block ──────────────────────────────────────────────
     mc_version = _pick_mc_version(releases)
+
+    # ── Loader block ─────────────────────────────────────────────────────────
     loader = _pick_loader()
 
-    # Collapse the wizard — restore cursor to saved position and wipe downward.
-    restore_cursor_clear()
-
+    # ── Resolve loader version ───────────────────────────────────────────────
     spinner(f"Resolving {loader} loader version")
     loader_version = get_latest_loader_version(loader, mc_version)
     if loader_version:
