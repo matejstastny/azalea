@@ -3,9 +3,10 @@
 import json
 import zipfile
 from pathlib import Path
+from urllib.parse import quote
 
 from azalea.config import API, BASE, CONFIG, MODS, OVERRIDES, RESOURCEPACKS, SHADERPACKS
-from azalea.log import log_err, log_info, log_ok, log_warn, spinner
+from azalea.log import Log, clear_lines, log_err, log_info, log_ok, log_warn, spinner
 from azalea.minecraft import (
     get_latest_fabric_loader,
     get_latest_release_version,
@@ -14,6 +15,52 @@ from azalea.minecraft import (
 )
 from azalea.modrinth import find_best_version, resolve_project
 from azalea.util import ensure_overrides_dir, http_json, load_config, safe_name, save_json
+
+_ALL_CONTENT_DIRS = [
+    (MODS, "mod"),
+    (RESOURCEPACKS, "resourcepack"),
+    (SHADERPACKS, "shader"),
+]
+
+
+def _find_installed(slug):
+    """Return (path, type_name) for an installed slug, or (None, None)."""
+    for dir_path, type_name in _ALL_CONTENT_DIRS:
+        p = dir_path / f"{slug}.json"
+        if p.exists():
+            return p, type_name
+    return None, None
+
+
+def _check_compat(target_mc, loader):
+    """Check all installed mods for compatibility with target_mc.
+
+    Returns list of incompatible slugs.
+    """
+    incompatible = []
+    for f in MODS.glob("*.json"):
+        mod = json.loads(f.read_text())
+        pid = mod["project_id"]
+        slug = mod["slug"]
+
+        spinner(f"Checking {slug}", duration=0.2)
+
+        versions = http_json(f"{API}/project/{pid}/version")
+
+        compatible = any(
+            mc_version_matches(target_mc, v.get("game_versions", []))
+            and (
+                not v.get("loaders")
+                or loader in v.get("loaders", [])
+                or "minecraft" in v.get("loaders", [])
+            )
+            for v in versions
+        )
+
+        if not compatible:
+            incompatible.append(slug)
+
+    return incompatible
 
 
 def install_mod(identifier, installed=None, explicit=True):
@@ -51,10 +98,16 @@ def install_mod(identifier, installed=None, explicit=True):
 
     version = find_best_version(pid, mc, loader)
     if not version:
-        log_err(f"No compatible version for {slug}")
-        return
+        if project_type == "resourcepack":
+            log_warn(f"No version of {slug} matches Minecraft {mc}; installing latest available")
+            all_versions = http_json(f"{API}/project/{pid}/version")
+            version = all_versions[0] if all_versions else None
+        if not version:
+            log_err(f"No compatible version for {slug}")
+            return
 
     file = version["files"][0]
+    file_size = file.get("size", 0)
 
     deps = [d["project_id"] for d in version["dependencies"] if d["dependency_type"] == "required"]
 
@@ -81,6 +134,7 @@ def install_mod(identifier, installed=None, explicit=True):
             "filename": file["filename"],
             "sha512": file["hashes"]["sha512"],
             "sha1": file["hashes"].get("sha1"),
+            "size": file_size,
         },
         "explicit": explicit,
         "dependencies": deps,
@@ -161,8 +215,8 @@ def prune_unused_deps():
 
 
 def remove_mod(slug):
-    p = MODS / f"{slug}.json"
-    if not p.exists():
+    p, _ = _find_installed(slug)
+    if not p:
         log_warn("Not installed")
         return
     p.unlink()
@@ -173,35 +227,31 @@ def remove_mod(slug):
         log_info("Pruned unused dependencies: " + ", ".join(removed))
 
 
-def check(user_arg):
+def remove_from_file(file_path: str):
+    p = Path(file_path)
+
+    if not p.exists():
+        log_err(f"File not found: {file_path}")
+        return
+
+    for raw in p.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        remove_mod(line)
+
+
+def check(user_arg=None):
     cfg = load_config()
     loader = cfg["loader"]
 
-    target_mc = resolve_target_mc(user_arg)
+    if user_arg is None:
+        target_mc = cfg["minecraft_version"]
+        log_info(f"Checking against current pack version: {target_mc}")
+    else:
+        target_mc = resolve_target_mc(user_arg)
 
-    incompatible = []
-
-    for f in MODS.glob("*.json"):
-        mod = json.loads(f.read_text())
-        pid = mod["project_id"]
-        slug = mod["slug"]
-
-        spinner(f"Checking {slug}", duration=0.2)
-
-        versions = http_json(f"{API}/project/{pid}/version")
-
-        compatible = any(
-            mc_version_matches(target_mc, v.get("game_versions", []))
-            and (
-                not v.get("loaders")
-                or loader in v.get("loaders", [])
-                or "minecraft" in v.get("loaders", [])
-            )
-            for v in versions
-        )
-
-        if not compatible:
-            incompatible.append(slug)
+    incompatible = _check_compat(target_mc, loader)
 
     if incompatible:
         for slug in incompatible:
@@ -254,7 +304,7 @@ def export():
                     "path": f"{prefix}/{mod['file']['filename']}",
                     "hashes": hashes,
                     "downloads": [mod["file"]["url"]],
-                    "fileSize": 0,
+                    "fileSize": mod["file"].get("size", 0),
                 }
             )
 
@@ -335,29 +385,7 @@ def upgrade(target_mc_arg=None):
 
     spinner(f"Checking upgrade compatibility: {current_mc} → {target_mc}")
 
-    incompatible = []
-
-    for f in MODS.glob("*.json"):
-        mod = json.loads(f.read_text())
-        pid = mod["project_id"]
-        slug = mod["slug"]
-
-        spinner(f"Checking {slug}", duration=0.2)
-
-        versions = http_json(f"{API}/project/{pid}/version")
-
-        compatible = any(
-            mc_version_matches(target_mc, v.get("game_versions", []))
-            and (
-                not v.get("loaders")
-                or loader in v.get("loaders", [])
-                or "minecraft" in v.get("loaders", [])
-            )
-            for v in versions
-        )
-
-        if not compatible:
-            incompatible.append(slug)
+    incompatible = _check_compat(target_mc, loader)
 
     if incompatible:
         log_err("Upgrade blocked. These mods have no compatible version:")
@@ -403,6 +431,10 @@ def update_all(force=False):
                 slug = data.get("slug", pid)
                 current_version = data.get("version_id")
 
+                if data.get("pinned"):
+                    skipped.append(f"{slug} (pinned)")
+                    continue
+
                 spinner(f"Checking {slug}", duration=0.2)
 
                 newest = find_best_version(pid, mc, loader)
@@ -425,6 +457,7 @@ def update_all(force=False):
                             "filename": file["filename"],
                             "sha512": file["hashes"]["sha512"],
                             "sha1": file["hashes"].get("sha1"),
+                            "size": file.get("size", 0),
                         },
                         "dependencies": [
                             d["project_id"]
@@ -483,13 +516,12 @@ def readme():
             except Exception:
                 continue
 
-            name = data.get("slug", "unknown")
-            pid = data.get("project_id", "")
+            slug = data.get("slug", "unknown")
             side = data.get("side", "?")
             version = data.get("version_number", "?")
 
-            url = f"https://modrinth.com/project/{pid}"
-            entries.append(f"| [{name}]({url}) | {type_name} | {side} | {version} |")
+            url = f"https://modrinth.com/project/{slug}"
+            entries.append(f"| [{slug}]({url}) | {type_name} | {side} | {version} |")
 
     collect_from(MODS, "mod")
     collect_from(RESOURCEPACKS, "resourcepack")
@@ -510,3 +542,87 @@ def readme():
 
     readme_path.write_text(new_content)
     log_ok("README mod list updated")
+
+
+def search(query):
+    """Search Modrinth and display results."""
+    facets = quote(
+        '[["project_type:mod","project_type:resourcepack","project_type:shader","project_type:datapack"]]'
+    )
+    spinner("Searching Modrinth…")
+    data = http_json(f"{API}/search?query={quote(query)}&limit=10&facets={facets}")
+    hits = data.get("hits", [])
+
+    if not hits:
+        log_warn("No results found")
+        return
+
+    print()
+    for i, h in enumerate(hits, 1):
+        title = h.get("title") or h.get("slug")
+        slug = h.get("slug", "")
+        project_type = h.get("project_type", "mod")
+        desc = h.get("description", "")
+        downloads = h.get("downloads", 0)
+
+        print(
+            f"  {Log.BOLD}{i}){Log.RESET} {Log.CYAN}{title}{Log.RESET}"
+            f"  {Log.YELLOW}({slug}){Log.RESET}  [{project_type}]"
+        )
+        if desc:
+            print(f"     {desc[:90]}")
+        print(f"     {Log.GREEN}{downloads:,} downloads{Log.RESET}")
+        print()
+
+
+def info(slug):
+    """Display details of an installed mod/resourcepack/shader."""
+    p, type_name = _find_installed(slug)
+
+    if not p:
+        log_warn(f"{slug} is not installed")
+        return
+
+    data = json.loads(p.read_text())
+    pinned = data.get("pinned", False)
+    explicit = data.get("explicit", True)
+    deps = data.get("dependencies", [])
+
+    print()
+    print(f"  {Log.BOLD}{Log.CYAN}{data['slug']}{Log.RESET}")
+    print(f"  {'Type':<12}: {type_name}")
+    print(f"  {'Version':<12}: {data.get('version_number', '?')}")
+    print(f"  {'Side':<12}: {data.get('side', '?')}")
+    print(f"  {'Explicit':<12}: {explicit}")
+    print(f"  {'Pinned':<12}: {pinned}")
+    if deps:
+        print(f"  {'Dependencies':<12}: {', '.join(deps)}")
+    print(f"  {'URL':<12}: https://modrinth.com/project/{data['slug']}")
+    print()
+
+
+def pin_mod(slug):
+    """Lock a mod to its current version, skipping it during updates."""
+    p, _ = _find_installed(slug)
+    if not p:
+        log_warn(f"{slug} is not installed")
+        return
+    data = json.loads(p.read_text())
+    data["pinned"] = True
+    save_json(p, data)
+    log_ok(f"Pinned {slug} at {data.get('version_number', '?')}")
+
+
+def unpin_mod(slug):
+    """Remove the pin from a mod so it can be updated again."""
+    p, _ = _find_installed(slug)
+    if not p:
+        log_warn(f"{slug} is not installed")
+        return
+    data = json.loads(p.read_text())
+    if not data.get("pinned"):
+        log_info(f"{slug} is not pinned")
+        return
+    del data["pinned"]
+    save_json(p, data)
+    log_ok(f"Unpinned {slug}")
