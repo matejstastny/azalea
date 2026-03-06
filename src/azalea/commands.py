@@ -419,21 +419,32 @@ def _pick_loader() -> str:
         log_info("Mod loaders:")
         for i, loader in enumerate(SUPPORTED_LOADERS):
             conn = _connector(i, n)
-            print(f"{Log.CYAN}{conn}{Log.RESET} {loader}")
+            print(f"{Log.CYAN}{conn}{Log.RESET} {Log.BOLD}{_LETTERS[i]}){Log.RESET} {loader}")
 
         try:
-            raw = input(f"{Log.CYAN} Select loader (default fabric):{Log.RESET} ").strip().lower()
+            raw = (
+                input(f"{Log.CYAN} Enter letter or loader (default fabric):{Log.RESET} ")
+                .strip()
+                .lower()
+            )
         except (EOFError, KeyboardInterrupt):
             raw = ""
 
-        loader = raw or "fabric"
-        if loader in SUPPORTED_LOADERS:
+        if not raw:
+            raw = "a"
+
+        if len(raw) == 1 and raw in _LETTERS[:n]:
+            loader = SUPPORTED_LOADERS[_LETTERS.index(raw)]
+        elif raw in SUPPORTED_LOADERS:
+            loader = raw
+        else:
             restore_cursor_clear()
-            log_info(f"Mod loader: {loader}")
-            return loader
+            log_warn(f"Enter a letter (a–{_LETTERS[n - 1]}) or a loader name")
+            continue
 
         restore_cursor_clear()
-        log_warn(f"Invalid — choose from: {', '.join(SUPPORTED_LOADERS)}")
+        log_info(f"Mod loader: {loader}")
+        return loader
 
 
 def init():
