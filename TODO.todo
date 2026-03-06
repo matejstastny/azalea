@@ -28,8 +28,8 @@ Azalea CLI:
         ✔ Duplicate compatibility-check logic between `check` and `upgrade` — extract to shared helper @done(26-03-05)
 
     In progress:
-        - Fix `azalea init` crash on MC version picker (`KeyError: 'date_published'` — Modrinth game-version tags don't include that field)
-        - Redesign `azalea init` UI: cleaner header, aligned labels, section dividers, compact multi-column MC version grid, inline loader row
+        ✔ Fix `azalea init` crash on MC version picker (`KeyError: 'date_published'` — Modrinth game-version tags don't include that field) @done(26-03-05)
+        ✔ Redesign `azalea init` UI: cleaner header, aligned labels, section dividers, compact multi-column MC version grid, inline loader row @done(26-03-05)
 
     Long-term goals:
         ✔ Support other modloaders than fabric @done(26-03-05)

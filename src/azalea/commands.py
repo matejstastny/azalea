@@ -327,29 +327,63 @@ def export():
     log_ok(f"Exported {path}")
 
 
+_SECTION_WIDTH = 38
+
+
+def _section(title: str):
+    """Print a styled section divider: ── Title ──────────"""
+    dashes = "─" * max(_SECTION_WIDTH - 3 - len(title) - 1, 2)
+    print(f"\n  {Log.BOLD}{Log.CYAN}── {title} {dashes}{Log.RESET}\n")
+
+
 def _prompt(label: str, default: str = "") -> str:
-    """Display a prompt and return the user's input, falling back to default."""
-    suffix = f" [{default}]" if default else ""
+    """Aligned label prompt with an optional default shown in yellow."""
+    dflt_str = f"({default})" if default else ""
+    # widths are for visual alignment; ANSI codes wrap after padding so they
+    # don't affect the measured length of `label` or `dflt_str` themselves.
+    prefix = (
+        f"  {Log.BOLD}{label:<9}{Log.RESET}"
+        f" {Log.YELLOW}{dflt_str:<11}{Log.RESET}"
+        f" {Log.CYAN}›{Log.RESET}"
+    )
     try:
-        val = input(f"  {Log.BOLD}{label}{Log.RESET}{suffix}: ").strip()
+        val = input(f"{prefix} ").strip()
         return val if val else default
     except (EOFError, KeyboardInterrupt):
         return default
 
 
 def _pick_mc_version(releases: list) -> str:
-    """Show a numbered list of recent MC versions and return the user's choice."""
-    recent = sorted(releases, key=lambda v: v["date_published"], reverse=True)[:15]
+    """Show a compact 3-column grid of recent MC versions and return the choice."""
+    # BUG FIX: Modrinth /tag/game_version uses "date" not "date_published";
+    # use .get() with both keys so sorting never raises KeyError.
+    recent = sorted(
+        releases,
+        key=lambda v: v.get("date_published") or v.get("date", ""),
+        reverse=True,
+    )[:15]
     all_valid = {r["version"] for r in releases}
 
-    print(f"\n  {Log.BOLD}Minecraft version{Log.RESET} (type a number or version directly):")
-    for i, r in enumerate(recent, 1):
-        print(f"    {i}) {r['version']}")
+    _section("Minecraft version")
+
+    cols = 3
+    rows = (len(recent) + cols - 1) // cols
+    for r in range(rows):
+        parts = []
+        for c in range(cols):
+            idx = r + c * rows
+            if idx < len(recent):
+                num = idx + 1
+                ver = recent[idx]["version"]
+                parts.append(f"  {Log.BOLD}{num:2}){Log.RESET} {ver:<9}")
+            else:
+                parts.append(" " * 15)
+        print("  " + " ".join(parts))
     print()
 
     while True:
         try:
-            choice = input("  Select: ").strip()
+            choice = input(f"  {Log.CYAN}›{Log.RESET} ").strip()
         except (EOFError, KeyboardInterrupt):
             return recent[0]["version"]
 
@@ -359,19 +393,22 @@ def _pick_mc_version(releases: list) -> str:
             return recent[int(choice) - 1]["version"]
         if choice in all_valid:
             return choice
-        log_warn("  Invalid selection, try again")
+        log_warn(f"  Invalid — enter a number (1–{len(recent)}) or a version like 1.21")
 
 
 def _pick_loader() -> str:
-    """Show the supported loaders and return the user's choice."""
-    print(f"\n  {Log.BOLD}Loader{Log.RESET}:")
-    for i, loader in enumerate(SUPPORTED_LOADERS, 1):
-        print(f"    {i}) {loader}")
+    """Show all supported loaders on one row and return the choice."""
+    _section("Loader")
+
+    parts = [
+        f"  {Log.BOLD}{i}){Log.RESET} {loader}" for i, loader in enumerate(SUPPORTED_LOADERS, 1)
+    ]
+    print("  " + "    ".join(parts))
     print()
 
     while True:
         try:
-            choice = input("  Select [1]: ").strip() or "1"
+            choice = input(f"  {Log.CYAN}›{Log.RESET} [1] ").strip() or "1"
         except (EOFError, KeyboardInterrupt):
             return SUPPORTED_LOADERS[0]
 
@@ -379,7 +416,7 @@ def _pick_loader() -> str:
             return SUPPORTED_LOADERS[int(choice) - 1]
         if choice in SUPPORTED_LOADERS:
             return choice
-        log_warn("  Invalid selection, try again")
+        log_warn("  Invalid selection")
 
 
 def init():
@@ -393,14 +430,15 @@ def init():
     releases = get_release_versions()
     if not releases:
         log_warn("Could not fetch Minecraft versions; using fallback 1.21")
-        releases = [{"version": "1.21", "date_published": "2024-06-13"}]
+        releases = [{"version": "1.21", "date": "2024-06-13"}]
 
-    print(f"\n{Log.BOLD}{Log.CYAN}  Azalea — New Pack{Log.RESET}\n")
+    print(f"\n  {Log.BOLD}{Log.CYAN}✿  Azalea · New Pack{Log.RESET}")
+    print(f"  {Log.CYAN}{'─' * 34}{Log.RESET}\n")
 
-    name = _prompt("Pack name", "My Pack")
-    author = _prompt("Author", "")
+    name = _prompt("Name", "My Pack")
+    author = _prompt("Author")
     version = _prompt("Version", "0.1.0")
-    license_ = _prompt("License", "")
+    license_ = _prompt("License")
 
     mc_version = _pick_mc_version(releases)
     loader = _pick_loader()
