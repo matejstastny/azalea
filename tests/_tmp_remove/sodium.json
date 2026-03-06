@@ -1,1 +1,0 @@
-{"project_id": "proj-sodium", "slug": "sodium", "version_id": "ver-001", "version_number": "0.5.0", "side": "client", "explicit": true, "dependencies": [], "file": {"url": "https://cdn.modrinth.com/sodium.jar", "filename": "sodium.jar", "sha512": "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc", "sha1": "deadbeef", "size": 1000}}
