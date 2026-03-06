@@ -6,7 +6,16 @@ from pathlib import Path
 from urllib.parse import quote
 
 from azalea.config import API, BASE, CONFIG, MODS, OVERRIDES, RESOURCEPACKS, SHADERPACKS
-from azalea.log import Log, log_err, log_info, log_ok, log_warn, spinner
+from azalea.log import (
+    Log,
+    log_err,
+    log_info,
+    log_ok,
+    log_warn,
+    restore_cursor_clear,
+    save_cursor,
+    spinner,
+)
 from azalea.minecraft import (
     SUPPORTED_LOADERS,
     get_latest_loader_version,
@@ -327,13 +336,11 @@ def export():
     log_ok(f"Exported {path}")
 
 
-_SECTION_WIDTH = 38
-
-
 def _section(title: str):
-    """Print a styled section divider: ── Title ──────────"""
-    dashes = "─" * max(_SECTION_WIDTH - 3 - len(title) - 1, 2)
-    print(f"\n  {Log.BOLD}{Log.CYAN}── {title} {dashes}{Log.RESET}\n")
+    """Print a wizard section header using the same style as log_info."""
+    print()
+    log_info(title)
+    print()
 
 
 def _prompt(label: str, default: str = "") -> str:
@@ -432,8 +439,11 @@ def init():
         log_warn("Could not fetch Minecraft versions; using fallback 1.21")
         releases = [{"version": "1.21", "date": "2024-06-13"}]
 
-    print(f"\n  {Log.BOLD}{Log.CYAN}✿  Azalea · New Pack{Log.RESET}")
-    print(f"  {Log.CYAN}{'─' * 34}{Log.RESET}\n")
+    # Save cursor so the entire wizard block can be collapsed after completion.
+    save_cursor()
+
+    log_info("New pack")
+    print()
 
     name = _prompt("Name", "My Pack")
     author = _prompt("Author")
@@ -442,6 +452,9 @@ def init():
 
     mc_version = _pick_mc_version(releases)
     loader = _pick_loader()
+
+    # Collapse the wizard — restore cursor to saved position and wipe downward.
+    restore_cursor_clear()
 
     spinner(f"Resolving {loader} loader version")
     loader_version = get_latest_loader_version(loader, mc_version)
@@ -462,7 +475,7 @@ def init():
     }
 
     save_json(CONFIG, data)
-    log_ok("Azalea pack initialized")
+    log_ok(f"Initialized · {name} · MC {mc_version} · {loader} {loader_version or '?'}")
 
 
 def upgrade(target_mc_arg=None):

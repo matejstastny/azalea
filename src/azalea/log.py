@@ -44,6 +44,18 @@ def clear_lines(n):
     sys.stdout.flush()
 
 
+def save_cursor():
+    """Save the current cursor position so it can be restored later."""
+    sys.stdout.write("\033[s")
+    sys.stdout.flush()
+
+
+def restore_cursor_clear():
+    """Restore cursor to the last saved position and erase everything below."""
+    sys.stdout.write("\033[u\033[J")
+    sys.stdout.flush()
+
+
 def spinner(msg, duration=0.6):
     frames = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
     end = time.time() + duration

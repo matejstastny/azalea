@@ -21,6 +21,8 @@
 - Upgrade to a new Minecraft version with a single command
 - Export to `.mrpack` for use with any Modrinth-compatible launcher
 - Auto-generate mod tables in your project `README`
+- Supports Fabric, Quilt, NeoForge, and Forge
+- Pin mods to prevent them from being updated
 
 ## Install
 
@@ -40,13 +42,18 @@ azalea export            # build a .mrpack archive in dist/
 
 | Command | Description |
 |---------|-------------|
-| `azalea init` | Initialise a new pack in the current directory |
+| `azalea init` | Interactively initialise a new pack (name, author, MC version, loader) |
 | `azalea add <slug>` | Add a mod, resource pack, or shader from Modrinth |
 | `azalea add -f <file>` | Batch install from a text file (one slug per line) |
 | `azalea remove <slug>` | Remove a mod and prune unused dependencies |
+| `azalea remove -f <file>` | Batch remove mods listed in a file |
+| `azalea search <query>` | Search Modrinth and display results |
+| `azalea info <slug>` | Show details of an installed mod (version, side, dependencies, pin status) |
+| `azalea pin <slug>` | Lock a mod to its current version — skipped during `update` |
+| `azalea unpin <slug>` | Remove a pin so the mod is updated normally again |
 | `azalea update` | Update all installed content to the latest compatible versions |
 | `azalea upgrade [mc]` | Upgrade the pack to a new Minecraft version |
-| `azalea check <mc>` | Check compatibility of all mods against a target MC version |
+| `azalea check [mc]` | Check mod compatibility (defaults to current pack version) |
 | `azalea export` | Export a `.mrpack` archive to `dist/` |
 | `azalea readme` | Regenerate the mod table in your project `README.md` |
 
@@ -78,9 +85,11 @@ azalea export            # build a .mrpack archive in dist/
     "url": "https://cdn.modrinth.com/...",
     "filename": "sodium-fabric-0.6.5+mc1.21.4.jar",
     "sha512": "...",
-    "sha1": "..."
+    "sha1": "...",
+    "size": 1234567
   },
   "explicit": true,
+  "pinned": false,
   "dependencies": []
 }
 ```
