@@ -657,10 +657,25 @@ def readme():
 
 
 def search(query):
-    """Search Modrinth and display results."""
-    facets = quote(
-        '[["project_type:mod","project_type:resourcepack","project_type:shader","project_type:datapack"]]'
-    )
+    """Search Modrinth and display results, filtered by the pack's loader when available."""
+    non_mod_types = ["project_type:resourcepack", "project_type:shader", "project_type:datapack"]
+    all_types = ["project_type:mod"] + non_mod_types
+
+    # First facet group: restrict to supported project types.
+    facet_groups = [all_types]
+
+    # Second facet group: when inside a pack, only show mods that are tagged
+    # for the configured loader.  Resource packs, shaders, and datapacks are
+    # always included because they carry no loader tag.
+    if CONFIG.exists():
+        try:
+            loader = load_config().get("loader", "")
+            if loader:
+                facet_groups.append([f"categories:{loader}"] + non_mod_types)
+        except Exception:
+            pass
+
+    facets = quote(json.dumps(facet_groups))
     spinner("Searching Modrinth…")
     data = http_json(f"{API}/search?query={quote(query)}&limit=10&facets={facets}")
     hits = data.get("hits", [])
