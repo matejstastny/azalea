@@ -8,8 +8,10 @@ from urllib.parse import quote
 from azalea.config import API, BASE, CONFIG, MODS, OVERRIDES, RESOURCEPACKS, SHADERPACKS
 from azalea.log import Log, clear_lines, log_err, log_info, log_ok, log_warn, spinner
 from azalea.minecraft import (
+    SUPPORTED_LOADERS,
     get_latest_loader_version,
     get_latest_release_version,
+    get_release_versions,
     mc_version_matches,
     resolve_target_mc,
 )
@@ -325,6 +327,61 @@ def export():
     log_ok(f"Exported {path}")
 
 
+def _prompt(label: str, default: str = "") -> str:
+    """Display a prompt and return the user's input, falling back to default."""
+    suffix = f" [{default}]" if default else ""
+    try:
+        val = input(f"  {Log.BOLD}{label}{Log.RESET}{suffix}: ").strip()
+        return val if val else default
+    except (EOFError, KeyboardInterrupt):
+        return default
+
+
+def _pick_mc_version(releases: list) -> str:
+    """Show a numbered list of recent MC versions and return the user's choice."""
+    recent = sorted(releases, key=lambda v: v["date_published"], reverse=True)[:15]
+    all_valid = {r["version"] for r in releases}
+
+    print(f"\n  {Log.BOLD}Minecraft version{Log.RESET} (type a number or version directly):")
+    for i, r in enumerate(recent, 1):
+        print(f"    {i}) {r['version']}")
+    print()
+
+    while True:
+        try:
+            choice = input("  Select: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            return recent[0]["version"]
+
+        if not choice:
+            return recent[0]["version"]
+        if choice.isdigit() and 1 <= int(choice) <= len(recent):
+            return recent[int(choice) - 1]["version"]
+        if choice in all_valid:
+            return choice
+        log_warn("  Invalid selection, try again")
+
+
+def _pick_loader() -> str:
+    """Show the supported loaders and return the user's choice."""
+    print(f"\n  {Log.BOLD}Loader{Log.RESET}:")
+    for i, loader in enumerate(SUPPORTED_LOADERS, 1):
+        print(f"    {i}) {loader}")
+    print()
+
+    while True:
+        try:
+            choice = input("  Select [1]: ").strip() or "1"
+        except (EOFError, KeyboardInterrupt):
+            return SUPPORTED_LOADERS[0]
+
+        if choice.isdigit() and 1 <= int(choice) <= len(SUPPORTED_LOADERS):
+            return SUPPORTED_LOADERS[int(choice) - 1]
+        if choice in SUPPORTED_LOADERS:
+            return choice
+        log_warn("  Invalid selection, try again")
+
+
 def init():
     if CONFIG.exists():
         log_warn("Already initialized")
@@ -332,27 +389,35 @@ def init():
 
     ensure_overrides_dir()
 
-    mc_version = get_latest_release_version()
-    if not mc_version:
-        mc_version = "1.21"
-        log_warn("Could not resolve latest Minecraft version, using fallback 1.21")
-    else:
-        log_info(f"Using Minecraft {mc_version}")
+    spinner("Fetching Minecraft versions")
+    releases = get_release_versions()
+    if not releases:
+        log_warn("Could not fetch Minecraft versions; using fallback 1.21")
+        releases = [{"version": "1.21", "date_published": "2024-06-13"}]
 
-    loader = "fabric"  # default; overridden by interactive init
+    print(f"\n{Log.BOLD}{Log.CYAN}  Azalea — New Pack{Log.RESET}\n")
 
+    name = _prompt("Pack name", "My Pack")
+    author = _prompt("Author", "")
+    version = _prompt("Version", "0.1.0")
+    license_ = _prompt("License", "")
+
+    mc_version = _pick_mc_version(releases)
+    loader = _pick_loader()
+
+    spinner(f"Resolving {loader} loader version")
     loader_version = get_latest_loader_version(loader, mc_version)
-    if not loader_version:
-        loader_version = ""
-        log_warn(f"Could not resolve compatible {loader} loader version")
-    else:
+    if loader_version:
         log_info(f"Using {loader} {loader_version}")
+    else:
+        loader_version = ""
+        log_warn(f"Could not resolve {loader} loader version for Minecraft {mc_version}")
 
     data = {
-        "name": "My Pack",
-        "author": "Created by Azalea",
-        "version": "1.0.0",
-        "license": "",
+        "name": name,
+        "author": author,
+        "version": version,
+        "license": license_,
         "minecraft_version": mc_version,
         "loader": loader,
         "loader_version": loader_version,

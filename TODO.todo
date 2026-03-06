@@ -30,7 +30,7 @@ Azalea CLI:
     Long-term goals:
         ✔ Support other modloaders than fabric @done(26-03-05)
         ✔ Fix shader loaders when downloading shaders (currently hardcoded options that don't check if required mod is installed, ex. iris, optifine) @done(26-03-05)
-        - Improve the `azalea init` commands, prompts user for name, defaults to `0.1.0` version, asks for author name, prints a searchable list of MC versions, selects a loader and uses the latest version (all in a order with the most sence)
+        ✔ Improve the `azalea init` commands, prompts user for name, defaults to `0.1.0` version, asks for author name, prints a searchable list of MC versions, selects a loader and uses the latest version (all in a order with the most sence) @done(26-03-05)
 
     Someday:
         - Publish package to PyPI
