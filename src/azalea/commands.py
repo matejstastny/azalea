@@ -8,7 +8,7 @@ from urllib.parse import quote
 from azalea.config import API, BASE, CONFIG, MODS, OVERRIDES, RESOURCEPACKS, SHADERPACKS
 from azalea.log import Log, clear_lines, log_err, log_info, log_ok, log_warn, spinner
 from azalea.minecraft import (
-    get_latest_fabric_loader,
+    get_latest_loader_version,
     get_latest_release_version,
     mc_version_matches,
     resolve_target_mc,
@@ -339,15 +339,14 @@ def init():
     else:
         log_info(f"Using Minecraft {mc_version}")
 
-    # TD: other modloader support (long term goal)
-    loader = "fabric"
+    loader = "fabric"  # default; overridden by interactive init
 
-    loader_version = get_latest_fabric_loader(mc_version)
+    loader_version = get_latest_loader_version(loader, mc_version)
     if not loader_version:
         loader_version = ""
-        log_warn("Could not resolve compatible Fabric loader version")
+        log_warn(f"Could not resolve compatible {loader} loader version")
     else:
-        log_info(f"Using Fabric {loader_version}")
+        log_info(f"Using {loader} {loader_version}")
 
     data = {
         "name": "My Pack",
@@ -395,17 +394,14 @@ def upgrade(target_mc_arg=None):
 
     cfg["minecraft_version"] = target_mc
 
-    # todo: implement when more loaders implemented
-    if loader == "fabric":
-        new_loader = get_latest_fabric_loader(target_mc)
-
-        if new_loader == loader_ver:
-            log_info("Fabric version already latest")
-        elif new_loader:
-            cfg["loader_version"] = new_loader
-            log_info(f"Updated Fabric loader to {new_loader}")
-        else:
-            log_warn("Could not resolve a Fabric loader for the new version")
+    new_loader_ver = get_latest_loader_version(loader, target_mc)
+    if new_loader_ver == loader_ver:
+        log_info(f"{loader} loader already latest")
+    elif new_loader_ver:
+        cfg["loader_version"] = new_loader_ver
+        log_info(f"Updated {loader} loader to {new_loader_ver}")
+    else:
+        log_warn(f"Could not resolve a {loader} loader version for Minecraft {target_mc}")
 
     save_json(CONFIG, cfg)
     log_ok(f"Pack upgraded to Minecraft {target_mc}")
