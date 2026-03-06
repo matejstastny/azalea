@@ -18,6 +18,7 @@ from azalea.commands import (
     pin_mod,
     prune_unused_deps,
     remove_mod,
+    search,
     unpin_mod,
 )
 
@@ -299,6 +300,76 @@ class TestInfo(unittest.TestCase):
         ):
             info("not-there")
             mock_warn.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Tests: search loader filtering
+# ---------------------------------------------------------------------------
+
+
+class TestSearch(unittest.TestCase):
+    def _run_search(self, query, config=None):
+        """Run search() and return the facets string that was passed to http_json."""
+        captured_url = []
+
+        def fake_http(url):
+            captured_url.append(url)
+            return {"hits": []}
+
+        patches = [patch("azalea.commands.http_json", side_effect=fake_http)]
+        if config is not None:
+            patches.append(patch("azalea.commands.CONFIG"))
+            patches.append(patch("azalea.commands.load_config", return_value=config))
+
+        with patches[0]:
+            if len(patches) > 1:
+                with patches[1] as mock_cfg_path, patches[2]:
+                    mock_cfg_path.exists.return_value = True
+                    search(query)
+            else:
+                with patch("azalea.commands.CONFIG") as mock_cfg_path:
+                    mock_cfg_path.exists.return_value = False
+                    search(query)
+
+        return captured_url[0] if captured_url else ""
+
+    def test_no_config_sends_single_facet_group(self):
+        url = self._run_search("sodium")
+        # Only one facet group — no loader filter
+        import json
+        from urllib.parse import unquote, urlparse, parse_qs
+
+        qs = parse_qs(urlparse(url).query)
+        facets = json.loads(unquote(qs["facets"][0]))
+        self.assertEqual(len(facets), 1)
+
+    def test_with_fabric_config_adds_loader_facet(self):
+        url = self._run_search("sodium", config={"loader": "fabric"})
+        import json
+        from urllib.parse import unquote, urlparse, parse_qs
+
+        qs = parse_qs(urlparse(url).query)
+        facets = json.loads(unquote(qs["facets"][0]))
+        # Two groups: project_type AND loader-aware group
+        self.assertEqual(len(facets), 2)
+        loader_group = facets[1]
+        self.assertIn("categories:fabric", loader_group)
+        # Resource packs and shaders always pass through
+        self.assertIn("project_type:resourcepack", loader_group)
+        self.assertIn("project_type:shader", loader_group)
+
+    def test_forge_only_mod_excluded_by_facet(self):
+        """A Forge-only mod would not satisfy categories:fabric, so the API
+        excludes it.  We verify the facet is built correctly for forge packs."""
+        url = self._run_search("optifine", config={"loader": "forge"})
+        import json
+        from urllib.parse import unquote, urlparse, parse_qs
+
+        qs = parse_qs(urlparse(url).query)
+        facets = json.loads(unquote(qs["facets"][0]))
+        loader_group = facets[1]
+        self.assertIn("categories:forge", loader_group)
+        self.assertNotIn("categories:fabric", loader_group)
 
 
 if __name__ == "__main__":
