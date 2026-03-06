@@ -14,9 +14,9 @@ src/azalea/
 ├── config.py        path constants (BASE, CONFIG, MODS, RESOURCEPACKS, SHADERPACKS, OVERRIDES) + API URL
 ├── log.py           Log class, log_* functions, spinner, clear_lines, print_version
 ├── util.py          http_json, load_config, save_json, ensure_overrides_dir, safe_name
-├── minecraft.py     mc_version_matches, get_release_versions, resolve_target_mc, get_latest_release_version, get_latest_fabric_loader
+├── minecraft.py     mc_version_matches, get_release_versions, resolve_target_mc, get_latest_release_version, get_latest_loader_version (+ per-loader helpers)
 ├── modrinth.py      search_projects, resolve_project, find_best_version
-└── commands.py      all command implementations: init, install_mod, install_from_file, prune_unused_deps, remove_mod, check, export, upgrade, update_all, readme
+└── commands.py      all command implementations: init, install_mod, install_from_file, prune_unused_deps, remove_mod, check, export, upgrade, update_all, readme, search, info, pin_mod, unpin_mod, remove_from_file
 ```
 
 ## Import DAG (no circular imports)
