@@ -27,6 +27,10 @@ Azalea CLI:
         ✔ `readme` uses project_id in Modrinth URLs instead of slug (both work, slug is cleaner) @done(26-03-05)
         ✔ Duplicate compatibility-check logic between `check` and `upgrade` — extract to shared helper @done(26-03-05)
 
+    In progress:
+        - Fix `azalea init` crash on MC version picker (`KeyError: 'date_published'` — Modrinth game-version tags don't include that field)
+        - Redesign `azalea init` UI: cleaner header, aligned labels, section dividers, compact multi-column MC version grid, inline loader row
+
     Long-term goals:
         ✔ Support other modloaders than fabric @done(26-03-05)
         ✔ Fix shader loaders when downloading shaders (currently hardcoded options that don't check if required mod is installed, ex. iris, optifine) @done(26-03-05)
