@@ -1,7 +1,6 @@
 Azalea CLI:
 -----------
 
-    ✔ Separate the one behemoth `cli.py` into an actuall project structure but ngl I'm lowk lazy @started(26-02-28 16:33) @done(26-02-28 19:57) @lasted(3h24m50s)
 
     Features:
         ✔ Add `azalea update` which will update all the content @started(26-02-16 21:57) @done(26-02-16 22:03) @lasted(6m3s)
@@ -15,6 +14,8 @@ Azalea CLI:
         ✔ Add `azalea pin <slug>` / `azalea unpin <slug>` to lock a mod to its current version and skip it during `update` @done(26-03-05)
         ✔ Add `azalea remove -f file.txt` to batch-remove mods by analogy with `add -f` @done(26-03-05)
         ✔ `azalea check` without an argument should default to the current pack version (sanity check) @done(26-03-05)
+        ✔ Support other modloaders than fabric @done(26-03-05)
+        ✔ Rework `azalea init` command to improve user experience and streamline the initialization process @done(26-03-05)
 
     Bugs:
         ✔ Fix exporting to .mrpack (mc and fabric versions missing in header) @done(26-02-16 11:45)
@@ -24,22 +25,12 @@ Azalea CLI:
         ✔ Make azalea able to install resource packs that are not matching with target version with a warning @done(26-03-05)
         ✔ `azalea remove` only looks in mods/, not resourcepacks/ or shaderpacks/ @done(26-03-05)
         ✔ `fileSize` is hardcoded to 0 in exported .mrpack — should use the real size from the Modrinth API @done(26-03-05)
+        ✔ Separate the one behemoth `cli.py` into an actuall project structure but ngl I'm lowk lazy @started(26-02-28 16:33) @done(26-02-28 19:57) @lasted(3h24m50s)
         ✔ `readme` uses project_id in Modrinth URLs instead of slug (both work, slug is cleaner) @done(26-03-05)
         ✔ Duplicate compatibility-check logic between `check` and `upgrade` — extract to shared helper @done(26-03-05)
-
-    In progress:
         ✔ Fix `azalea init` crash on MC version picker (`KeyError: 'date_published'` — Modrinth game-version tags don't include that field) @done(26-03-05)
         ✔ Redesign `azalea init` UI: cleaner header, aligned labels, section dividers, compact multi-column MC version grid, inline loader row @done(26-03-05)
-
-    Long-term goals:
-        ✔ Support other modloaders than fabric @done(26-03-05)
         ✔ Fix shader loaders when downloading shaders (currently hardcoded options that don't check if required mod is installed, ex. iris, optifine) @done(26-03-05)
-        ✔ Improve the `azalea init` commands, prompts user for name, defaults to `0.1.0` version, asks for author name, prints a searchable list of MC versions, selects a loader and uses the latest version (all in a order with the most sence) @done(26-03-05)
-
-    Someday:
-        - Publish package to PyPI
-        - Add a CHANGELOG and GitHub release workflow
-
 
 Miscellaneous:
 --------------
@@ -47,13 +38,8 @@ Miscellaneous:
     Repository:
         ✔ Make a proper README @started(26-02-28 20:05) @done(26-02-28 20:43) @lasted(38m58s)
         ✔ Add a formatting action @started(26-02-28 19:45) @done(26-02-28 20:30) @lasted(45m36s)
-        ✔ Add a test action (connected with @Tests) @done(26-03-05)
+        ✔ Add a CHANGELOG and GitHub release workflow @done(26-03-05)
 
     Formatting:
         ✔ Add a python formatter or linter @started(26-02-28 19:45) @done(26-02-28 20:30) @lasted(45m30s)
-        ✘ Configure black formatter @cancelled(26-02-28 19:45)
-
-    Tests:
-        ✔ Implement tests, add a quick set of commands testing the CLI (done manually rn) @done(26-03-05)
-        ✔ Mock the Modrinth API for unit tests (avoid real network calls) @done(26-03-05)
-        - Add integration tests against the real Modrinth API (read-only, rate-limited)
+        ✘ Configure black formatter @cancelled(26-02-28 19:45) (decided to use ruff)
