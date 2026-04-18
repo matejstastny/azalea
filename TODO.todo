@@ -24,13 +24,14 @@ Azalea CLI:
         ✔ CRITICAL: Modrinth API uploads fail, because my mod info does not inclide SHA1 @started(26-02-17 18:05) @done(26-02-17 18:46) @lasted(41m30s)
         ✔ Make azalea able to install resource packs that are not matching with target version with a warning @done(26-03-05)
         ✔ `azalea remove` only looks in mods/, not resourcepacks/ or shaderpacks/ @done(26-03-05)
-        ✔ `fileSize` is hardcoded to 0 in exported .mrpack — should use the real size from the Modrinth API @done(26-03-05)
+        ✔ `fileSize` is hardcoded to 0 in exported .mrpack - should use the real size from the Modrinth API @done(26-03-05)
         ✔ Separate the one behemoth `cli.py` into an actuall project structure but ngl I'm lowk lazy @started(26-02-28 16:33) @done(26-02-28 19:57) @lasted(3h24m50s)
         ✔ `readme` uses project_id in Modrinth URLs instead of slug (both work, slug is cleaner) @done(26-03-05)
-        ✔ Duplicate compatibility-check logic between `check` and `upgrade` — extract to shared helper @done(26-03-05)
-        ✔ Fix `azalea init` crash on MC version picker (`KeyError: 'date_published'` — Modrinth game-version tags don't include that field) @done(26-03-05)
+        ✔ Duplicate compatibility-check logic between `check` and `upgrade` - extract to shared helper @done(26-03-05)
+        ✔ Fix `azalea init` crash on MC version picker (`KeyError: 'date_published'` - Modrinth game-version tags don't include that field) @done(26-03-05)
         ✔ Redesign `azalea init` UI: cleaner header, aligned labels, section dividers, compact multi-column MC version grid, inline loader row @done(26-03-05)
         ✔ Fix shader loaders when downloading shaders (currently hardcoded options that don't check if required mod is installed, ex. iris, optifine) @done(26-03-05)
+        ✔ `azalea.json` does not put an empty line at the bottom @started(26-04-18 11:49) @done(26-04-18 11:52) @lasted(3m47s)
 
 Miscellaneous:
 --------------

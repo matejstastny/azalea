@@ -1,4 +1,4 @@
-"""Azalea CLI entry point — argument parsing and dispatch only."""
+"""Azalea CLI entry point - argument parsing and dispatch only."""
 
 import argparse
 import sys

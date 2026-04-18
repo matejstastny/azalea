@@ -49,7 +49,7 @@ azalea export            # build a .mrpack archive in dist/
 | `azalea remove -f <file>` | Batch remove mods listed in a file |
 | `azalea search <query>` | Search Modrinth and display results |
 | `azalea info <slug>` | Show details of an installed mod (version, side, dependencies, pin status) |
-| `azalea pin <slug>` | Lock a mod to its current version — skipped during `update` |
+| `azalea pin <slug>` | Lock a mod to its current version - skipped during `update` |
 | `azalea unpin <slug>` | Remove a pin so the mod is updated normally again |
 | `azalea update` | Update all installed content to the latest compatible versions |
 | `azalea upgrade [mc]` | Upgrade the pack to a new Minecraft version |
@@ -60,7 +60,7 @@ azalea export            # build a .mrpack archive in dist/
 <details>
 <summary>File format</summary>
 
-**`azalea.json`** — pack manifest stored in the project root:
+**`azalea.json`** - pack manifest stored in the project root:
 ```json
 {
   "name": "My Pack",
@@ -73,7 +73,7 @@ azalea export            # build a .mrpack archive in dist/
 }
 ```
 
-**`mods/<slug>.json`** — one file per installed project:
+**`mods/<slug>.json`** - one file per installed project:
 ```json
 {
   "project_id": "AANobbMI",
