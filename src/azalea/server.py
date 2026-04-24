@@ -12,7 +12,7 @@ import zipfile
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-from azalea.config import API
+from azalea.config import API, BASE, SERVER_OVERRIDES, SHARED_OVERRIDES
 from azalea.log import Log, log_err, log_info, log_ok, log_warn, spinner
 from azalea.minecraft import get_latest_fabric_installer_version
 from azalea.modrinth import download_content, find_best_version
@@ -218,10 +218,17 @@ _DEFAULT_RUN = {
 }
 
 
+def _pack_relative_path(config_path):
+    try:
+        return config_path.resolve().relative_to(BASE.resolve())
+    except Exception:
+        return config_path
+
+
 def _apply_overrides(pack_root, server_dir):
-    """Copy pack overrides/ (shared) then server/ (server-specific) into server_dir."""
-    for src_name in ("overrides", "server"):
-        src = pack_root / src_name
+    """Copy configured shared/server overrides into server_dir."""
+    for src_path in (_pack_relative_path(SHARED_OVERRIDES), _pack_relative_path(SERVER_OVERRIDES)):
+        src = pack_root / src_path
         if src.exists():
             for file in src.rglob("*"):
                 if file.is_file():

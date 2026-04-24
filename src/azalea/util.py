@@ -15,9 +15,9 @@ def http_json(url):
 
 
 def ensure_pack_dirs():
-    CLIENT_OVERRIDES.mkdir(exist_ok=True)
-    SERVER_OVERRIDES.mkdir(exist_ok=True)
-    SHARED_OVERRIDES.mkdir(exist_ok=True)
+    SHARED_OVERRIDES.mkdir(parents=True, exist_ok=True)
+    CLIENT_OVERRIDES.mkdir(parents=True, exist_ok=True)
+    SERVER_OVERRIDES.mkdir(parents=True, exist_ok=True)
 
 
 def load_config():
