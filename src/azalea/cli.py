@@ -112,7 +112,6 @@ def main():
     sv_sub.add_parser("diff", help="Preview changes without applying them")
     sv_sub.add_parser("run", help="Run the server")
     sv_sub.add_parser("info", help="Show current server config")
-    sv_sub.add_parser("status", help=argparse.SUPPRESS)
 
     slogs = sv_sub.add_parser("logs", help="Tail the server log")
     slogs.add_argument(
@@ -178,7 +177,7 @@ def main():
                 server_diff()
             elif args.server_cmd == "run":
                 server_run()
-            elif args.server_cmd in ("info", "status"):
+            elif args.server_cmd == "info":
                 server_info()
             elif args.server_cmd == "logs":
                 server_logs(args.lines)
