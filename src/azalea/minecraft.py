@@ -154,3 +154,15 @@ def get_latest_loader_version(loader: str, mc_version: str):
     elif loader == "forge":
         return get_latest_forge_loader(mc_version)
     return None
+
+
+def get_latest_fabric_installer_version():
+    try:
+        data = http_json("https://meta.fabricmc.net/v2/versions/installer")
+        if not data:
+            return None
+
+        stable = next((v for v in data if v.get("stable")), None)
+        return (stable or data[0]).get("version")
+    except Exception:
+        return None

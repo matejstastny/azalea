@@ -20,6 +20,16 @@ from azalea.commands import (
     upgrade,
 )
 from azalea.log import log_err, print_version
+from azalea.server import (
+    server_diff,
+    server_init,
+    server_logs,
+    server_pin,
+    server_run,
+    server_status,
+    server_unpin,
+    server_update,
+)
 
 
 def main():
@@ -58,6 +68,7 @@ def main():
 
     sub.add_parser("export", help="Export a .mrpack to dist/")
     sub.add_parser("readme", help="Update README.md mod table")
+
     upd = sub.add_parser("update", help="Update all installed content to latest versions")
     upd.add_argument(
         "-f",
@@ -87,6 +98,39 @@ def main():
 
     unpin = sub.add_parser("unpin", help="Remove a pin from a mod")
     unpin.add_argument("slug", help="Mod slug")
+
+    sv = sub.add_parser("server", help="Manage a Minecraft server built from an Azalea pack")
+    sv_sub = sv.add_subparsers(dest="server_cmd")
+
+    si = sv_sub.add_parser("init", help="Init a server from a pack source")
+    si.add_argument(
+        "source",
+        help="GitHub URL (https://github.com/owner/repo[@tag]) or local path",
+    )
+    si.add_argument(
+        "--accept-eula",
+        action="store_true",
+        help="Automatically write eula=true to eula.txt",
+    )
+
+    sv_sub.add_parser("update", help="Update the server from its stored source")
+    sv_sub.add_parser("diff", help="Preview changes without applying them")
+    sv_sub.add_parser("run", help="Run the server")
+    sv_sub.add_parser("status", help="Show current server config")
+
+    slogs = sv_sub.add_parser("logs", help="Tail the server log")
+    slogs.add_argument(
+        "-n",
+        "--lines",
+        type=int,
+        default=50,
+        help="Number of lines to show (default: 50)",
+    )
+
+    spin = sv_sub.add_parser("pin", help="Pin the server to a specific release tag")
+    spin.add_argument("tag", help="Release tag to pin to (e.g. v1.2.0)")
+
+    sv_sub.add_parser("unpin", help="Remove the release pin, track latest")
 
     args = p.parse_args()
 
@@ -129,6 +173,25 @@ def main():
             pin_mod(args.slug)
         elif args.cmd == "unpin":
             unpin_mod(args.slug)
+        elif args.cmd == "server":
+            if args.server_cmd == "init":
+                server_init(args.source, getattr(args, "accept_eula", False))
+            elif args.server_cmd == "update":
+                server_update()
+            elif args.server_cmd == "diff":
+                server_diff()
+            elif args.server_cmd == "run":
+                server_run()
+            elif args.server_cmd == "status":
+                server_status()
+            elif args.server_cmd == "logs":
+                server_logs(args.lines)
+            elif args.server_cmd == "pin":
+                server_pin(args.tag)
+            elif args.server_cmd == "unpin":
+                server_unpin()
+            else:
+                sv.print_help()
         else:
             p.print_help()
     except KeyboardInterrupt:

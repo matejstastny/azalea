@@ -4,7 +4,7 @@ import json
 import sys
 from urllib.request import Request, urlopen
 
-from azalea.config import CONFIG, OVERRIDES
+from azalea.config import CLIENT_OVERRIDES, CONFIG, SERVER_OVERRIDES, SHARED_OVERRIDES
 
 
 def http_json(url):
@@ -13,8 +13,10 @@ def http_json(url):
         return json.loads(r.read().decode())
 
 
-def ensure_overrides_dir():
-    OVERRIDES.mkdir(exist_ok=True)
+def ensure_pack_dirs():
+    CLIENT_OVERRIDES.mkdir(exist_ok=True)
+    SERVER_OVERRIDES.mkdir(exist_ok=True)
+    SHARED_OVERRIDES.mkdir(exist_ok=True)
 
 
 def load_config():
@@ -32,3 +34,15 @@ def safe_name(s):
     keep = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_ ."
     cleaned = "".join(c if c in keep else "-" for c in s)
     return "-".join(cleaned.strip().split())
+
+
+def download_file(url, save_path):
+    """Download a file from a URL and save it."""
+    try:
+        with urlopen(url) as response:
+            content = response.read()
+        save_path.write_bytes(content)
+        return True
+    except Exception as e:
+        print(f"Failed to download {url}: {e}")
+        return False

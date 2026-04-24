@@ -8,6 +8,7 @@ Icon
 ### python ###
 *.egg-info
 __pycache__
+build/
 
 ### testing folder ###
 modpack-test
