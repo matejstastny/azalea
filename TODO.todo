@@ -33,7 +33,8 @@ Azalea CLI:
         ✔ Redesign `azalea init` UI: cleaner header, aligned labels, section dividers, compact multi-column MC version grid, inline loader row @done(26-03-05)
         ✔ Fix shader loaders when downloading shaders (currently hardcoded options that don't check if required mod is installed, ex. iris, optifine) @done(26-03-05)
         ✔ `azalea.json` does not put an empty line at the bottom @started(26-04-18 11:49) @done(26-04-18 11:52) @lasted(3m47s)
-        - `azalea run` does not check for java version @started(26-04-23 23:09)
+        ✔ `azalea server run` does not check for java version @started(26-04-23 23:09) @done(26-04-23 23:26) @lasted(17m2s)
+        - `azalea server init` does not accept the eula by default @started(26-04-23 23:28)
 
 Miscellaneous:
 --------------

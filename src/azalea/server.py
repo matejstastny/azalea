@@ -8,7 +8,6 @@ import subprocess
 import sys
 import tempfile
 import zipfile
-from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import Request, urlopen
 
@@ -334,7 +333,6 @@ def _build(pack_root, source, installed_tag, accept_eula):
         "source": source,
         "pinned_tag": None,
         "installed_tag": installed_tag,
-        "installed_at": datetime.now(timezone.utc).isoformat(),
         "pack": {
             "name": cfg.get("name", ""),
             "version": cfg.get("version", ""),
@@ -354,7 +352,7 @@ def _build(pack_root, source, installed_tag, accept_eula):
 # ---------------------------------------------------------------------------
 
 
-def server_init(source, accept_eula=False):
+def server_init(source):
     """Build a server from a GitHub URL or local pack directory."""
     s_type, s_data = _parse_source(source)
 
@@ -375,7 +373,7 @@ def server_init(source, accept_eula=False):
             pack_root = s_data["path"]
             release_tag = None
 
-        _build(pack_root, stored_source, release_tag, accept_eula)
+        _build(pack_root, stored_source, release_tag, accept_eula=True)
 
     # Auto-pin when a specific tag was given in the URL
     if url_tag:
@@ -509,7 +507,6 @@ def server_status():
     print(f"  {'MC':<10}: {pack.get('minecraft_version', '?')}")
     print(f"  {'Loader':<10}: {pack.get('loader', '?')} {pack.get('loader_version', '?')}")
     print(f"  {'Mods':<10}: {len(server_config.get('mods', {}))} server mods")
-    print(f"  {'Built':<10}: {server_config.get('installed_at', '?')}")
     print(f"  {'Jar':<10}: {jar_str}")
     print()
 

@@ -107,11 +107,6 @@ def main():
         "source",
         help="GitHub URL (https://github.com/owner/repo[@tag]) or local path",
     )
-    si.add_argument(
-        "--accept-eula",
-        action="store_true",
-        help="Automatically write eula=true to eula.txt",
-    )
 
     sv_sub.add_parser("update", help="Update the server from its stored source")
     sv_sub.add_parser("diff", help="Preview changes without applying them")
@@ -175,7 +170,7 @@ def main():
             unpin_mod(args.slug)
         elif args.cmd == "server":
             if args.server_cmd == "init":
-                server_init(args.source, getattr(args, "accept_eula", False))
+                server_init(args.source)
             elif args.server_cmd == "update":
                 server_update()
             elif args.server_cmd == "diff":
