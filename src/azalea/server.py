@@ -2,6 +2,7 @@
 
 import io
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -11,10 +12,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import Request, urlopen
 
+from azalea.config import API
 from azalea.log import Log, log_err, log_info, log_ok, log_warn, spinner
 from azalea.minecraft import get_latest_fabric_installer_version
-from azalea.modrinth import download_content
-from azalea.util import download_file, save_json
+from azalea.modrinth import download_content, find_best_version
+from azalea.util import download_file, http_json, save_json
 
 GITHUB_API = "https://api.github.com"
 SERVER_CONFIG_FILE = "azalea-server.json"
@@ -124,6 +126,89 @@ def _collect_server_mods(pack_root):
     return mods
 
 
+def _required_java_major(jar_path):
+    """Infer required Java major from class file versions inside a jar."""
+    max_class_major = None
+    try:
+        with zipfile.ZipFile(jar_path) as jar:
+            for name in jar.namelist():
+                if not name.endswith(".class"):
+                    continue
+                with jar.open(name) as f:
+                    header = f.read(8)
+                if len(header) < 8 or header[:4] != b"\xca\xfe\xba\xbe":
+                    continue
+                class_major = int.from_bytes(header[6:8], "big")
+                if max_class_major is None or class_major > max_class_major:
+                    max_class_major = class_major
+    except Exception:
+        return None
+
+    if max_class_major is None:
+        return None
+
+    return max_class_major - 44
+
+
+def _required_java_major_from_minecraft_version(mc_version):
+    """Resolve required Java major from Mojang version metadata."""
+    if not mc_version:
+        return None
+
+    manifest_urls = [
+        "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
+        "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json",
+    ]
+
+    for manifest_url in manifest_urls:
+        try:
+            req = Request(manifest_url, headers={"User-Agent": "azalea/0.1"})
+            with urlopen(req) as r:
+                manifest = json.loads(r.read().decode())
+
+            versions = manifest.get("versions", [])
+            entry = next((v for v in versions if str(v.get("id")) == str(mc_version)), None)
+            if not entry or not entry.get("url"):
+                continue
+
+            req2 = Request(entry["url"], headers={"User-Agent": "azalea/0.1"})
+            with urlopen(req2) as r:
+                version_meta = json.loads(r.read().decode())
+
+            java_version = version_meta.get("javaVersion", {})
+            major = java_version.get("majorVersion")
+            if isinstance(major, int):
+                return major
+        except Exception:
+            continue
+
+    return None
+
+
+def _current_java_major(java_bin):
+    """Return installed Java major version for the selected java executable."""
+    try:
+        proc = subprocess.run([java_bin, "-version"], capture_output=True, text=True, check=False)
+    except Exception:
+        return None
+
+    output = (proc.stderr or "") + "\n" + (proc.stdout or "")
+    m = re.search(r'"([0-9][0-9._+]*)"', output)
+    if not m:
+        return None
+
+    v = m.group(1)
+    first = v.split(".")[0]
+    if first == "1":
+        parts = v.split(".")
+        if len(parts) > 1 and parts[1].isdigit():
+            return int(parts[1])
+        return None
+    if first.isdigit():
+        return int(first)
+    return None
+
+
 _DEFAULT_RUN = {
     "ram": "4G",
     "java_bin": "java",
@@ -144,6 +229,30 @@ def _apply_overrides(pack_root, server_dir):
                     dest = server_dir / rel
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(file, dest)
+
+
+def _ensure_fabric_api(mod_versions, mods_dir, mc, loader):
+    """Ensure a compatible Fabric API is present in the server mods directory."""
+    if "fabric-api" in mod_versions:
+        return
+
+    log_info("Fabric API missing from pack mods; installing it for server compatibility")
+    try:
+        project = http_json(f"{API}/project/fabric-api")
+    except Exception as e:
+        log_err(f"Failed to resolve fabric-api project: {e}")
+        sys.exit(1)
+
+    version = find_best_version(project["id"], mc, loader)
+    if not version:
+        log_err(f"No compatible fabric-api version for Minecraft {mc} / {loader}")
+        sys.exit(1)
+
+    if not download_content(version["id"], mods_dir):
+        log_err("Failed to download required fabric-api")
+        sys.exit(1)
+
+    mod_versions["fabric-api"] = version.get("version_number", "?")
 
 
 def _build(pack_root, source, installed_tag, accept_eula):
@@ -179,6 +288,8 @@ def _build(pack_root, source, installed_tag, accept_eula):
                     mod_versions[data["slug"]] = data.get("version_number", "?")
             except Exception as e:
                 log_warn(f"Skipped {f.stem}: {e}")
+
+    _ensure_fabric_api(mod_versions, mods_dir, mc, loader)
     log_ok(f"Downloaded {len(mod_versions)} server mods")
 
     # Download server jar (Fabric only for now)
@@ -418,6 +529,31 @@ def server_run():
     java_bin = run["java_bin"]
     jvm_args = run["jvm_args"] if isinstance(run["jvm_args"], list) else run["jvm_args"].split()
     game_args = run["game_args"] if isinstance(run["game_args"], list) else run["game_args"].split()
+
+    pack = server_config.get("pack", {})
+    required_java = _required_java_major_from_minecraft_version(pack.get("minecraft_version"))
+    required_source = "minecraft metadata"
+    if required_java is None:
+        required_java = _required_java_major(jar)
+        required_source = "jar scan"
+
+    current_java = _current_java_major(java_bin)
+
+    log_info(
+        "Current Java version: "
+        f"{current_java if current_java is not None else 'unknown'}, "
+        f"Required: {required_java if required_java is not None else 'unknown'} ({required_source})"
+    )
+
+    if required_java is not None and current_java is not None and current_java < required_java:
+        log_err(
+            f"Java {required_java}+ is required for {run['jar_name']} (found Java {current_java})"
+        )
+        sys.exit(1)
+    elif required_java is None:
+        log_warn("Could not detect required Java version from server.jar; starting anyway")
+    elif current_java is None:
+        log_warn("Could not detect current Java version; starting anyway")
 
     cmd = [java_bin, f"-Xms{ram}", f"-Xmx{ram}"] + jvm_args + ["-jar", run["jar_name"]] + game_args
     log_info(f"Starting {server_config.get('pack', {}).get('name', 'server')}…")
