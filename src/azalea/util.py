@@ -5,6 +5,7 @@ import sys
 from urllib.request import Request, urlopen
 
 from azalea.config import CLIENT_OVERRIDES, CONFIG, SERVER_OVERRIDES, SHARED_OVERRIDES
+from azalea.log import log_err
 
 
 def http_json(url):
@@ -21,7 +22,8 @@ def ensure_pack_dirs():
 
 def load_config():
     if not CONFIG.exists():
-        sys.exit("Not an Azalea pack. Run `azalea init`")
+        log_err("Not an Azalea pack. Run `azalea init`")
+        sys.exit(1)
     return json.loads(CONFIG.read_text())
 
 

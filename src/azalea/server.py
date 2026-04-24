@@ -30,7 +30,7 @@ def _load_server_config():
     """Load azalea-server.json from the current working directory."""
     server_config_path = Path(".") / SERVER_CONFIG_FILE
     if not server_config_path.exists():
-        log_err(f"Not a server directory — {SERVER_CONFIG_FILE} not found in {Path('.').resolve()}")
+        log_err("Not an azalea server. Run `azalea server init <source>`")
         sys.exit(1)
     return json.loads(server_config_path.read_text())
 
@@ -446,14 +446,19 @@ def server_diff():
     cur = server_config.get("pack", {})
     cur_mods = server_config.get("mods", {})
 
-    print()
+    ignored_mods = {"fabric-api"}
+    new_mods_filtered = {k: v for k, v in new_mods.items() if k not in ignored_mods}
+    cur_mods_filtered = {k: v for k, v in cur_mods.items() if k not in ignored_mods}
+
+    title = f"{Log.BOLD}{Log.CYAN}Server diff{Log.RESET}"
+    lines = [title]
     any_change = False
 
     def _row(label, old, new):
         nonlocal any_change
         if old != new:
-            print(
-                f"  {Log.BOLD}{label:<10}{Log.RESET} "
+            lines.append(
+                f"{Log.BOLD}{label:<10}{Log.RESET}: "
                 f"{Log.YELLOW}{old}{Log.RESET} → {Log.GREEN}{new}{Log.RESET}"
             )
             any_change = True
@@ -464,23 +469,31 @@ def server_diff():
     _row("MC", cur.get("minecraft_version", "?"), new_cfg.get("minecraft_version", "?"))
     _row("Loader", cur.get("loader_version", "?"), new_cfg.get("loader_version", "?"))
 
-    added = set(new_mods) - set(cur_mods)
-    removed = set(cur_mods) - set(new_mods)
-    changed = {s for s in new_mods if s in cur_mods and new_mods[s] != cur_mods[s]}
+    added = set(new_mods_filtered) - set(cur_mods_filtered)
+    removed = set(cur_mods_filtered) - set(new_mods_filtered)
+    changed = {
+        s
+        for s in new_mods_filtered
+        if s in cur_mods_filtered and new_mods_filtered[s] != cur_mods_filtered[s]
+    }
 
     for slug in sorted(added):
-        print(f"  {Log.GREEN}+ {slug} {new_mods[slug]}{Log.RESET}")
+        lines.append(f"{Log.GREEN}+ {slug} {new_mods_filtered[slug]}{Log.RESET}")
         any_change = True
     for slug in sorted(removed):
-        print(f"  {Log.RED}- {slug}{Log.RESET}")
+        lines.append(f"{Log.RED}- {slug}{Log.RESET}")
         any_change = True
     for slug in sorted(changed):
-        print(f"  {Log.CYAN}~ {slug}  {cur_mods[slug]} → {new_mods[slug]}{Log.RESET}")
+        lines.append(
+            f"{Log.CYAN}~ {slug}  {cur_mods_filtered[slug]} → {new_mods_filtered[slug]}{Log.RESET}"
+        )
         any_change = True
 
     if not any_change:
         log_ok("Already up to date")
-    print()
+        return
+
+    print("\n".join(lines))
 
 
 def server_status():
@@ -489,26 +502,34 @@ def server_status():
     pack = server_config.get("pack", {})
     pinned = server_config.get("pinned_tag")
 
-    tag_str = server_config.get("installed_tag") or "local"
+    title = f"{Log.BOLD}{Log.CYAN}{pack.get('name', '(unnamed)')}{Log.RESET}"
+    pack_version = f"{Log.GREEN}{pack.get('version', '?')}{Log.RESET}"
+
+    tag_val = server_config.get("installed_tag") or "local"
+    tag_str = f"{Log.BLUE}{tag_val}{Log.RESET}"
     if pinned:
         tag_str += f"  {Log.YELLOW}(pinned at {pinned}){Log.RESET}"
 
     server_dir = Path(".")
     jar_ok = (server_dir / "server.jar").exists()
-    jar_str = "present" if jar_ok else f"{Log.YELLOW}missing{Log.RESET}"
+    jar_str = f"{Log.GREEN}present{Log.RESET}" if jar_ok else f"{Log.YELLOW}missing{Log.RESET}"
 
-    print()
-    print(
-        f"  {Log.BOLD}{Log.CYAN}{pack.get('name', '(unnamed)')}{Log.RESET}"
-        f"  v{pack.get('version', '?')}"
+    source_str = f"{Log.CYAN}{server_config.get('source', '?')}{Log.RESET}"
+    mc_str = f"{Log.YELLOW}{pack.get('minecraft_version', '?')}{Log.RESET}"
+    loader_str = f"{Log.BLUE}{pack.get('loader', '?')} {pack.get('loader_version', '?')}{Log.RESET}"
+    mods_str = f"{Log.GREEN}{len(server_config.get('mods', {}))}{Log.RESET} server mods"
+
+    block = (
+        f"{title}  v{pack_version}\n"
+        f"{Log.BOLD}Source    {Log.RESET}: {source_str}\n"
+        f"{Log.BOLD}Tag       {Log.RESET}: {tag_str}\n"
+        f"{Log.BOLD}MC        {Log.RESET}: {mc_str}\n"
+        f"{Log.BOLD}Loader    {Log.RESET}: {loader_str}\n"
+        f"{Log.BOLD}Mods      {Log.RESET}: {mods_str}\n"
+        f"{Log.BOLD}Jar       {Log.RESET}: {jar_str}"
     )
-    print(f"  {'Source':<10}: {server_config.get('source', '?')}")
-    print(f"  {'Tag':<10}: {tag_str}")
-    print(f"  {'MC':<10}: {pack.get('minecraft_version', '?')}")
-    print(f"  {'Loader':<10}: {pack.get('loader', '?')} {pack.get('loader_version', '?')}")
-    print(f"  {'Mods':<10}: {len(server_config.get('mods', {}))} server mods")
-    print(f"  {'Jar':<10}: {jar_str}")
-    print()
+
+    print(block)
 
 
 def server_run():
@@ -519,7 +540,7 @@ def server_run():
 
     jar = server_dir / run["jar_name"]
     if not jar.exists():
-        log_err(f"{run['jar_name']} not found — run `azalea server build` first")
+        log_err(f"{run['jar_name']} not found - run `azalea server build` first")
         sys.exit(1)
 
     ram = run["ram"]
@@ -565,7 +586,7 @@ def server_logs(lines=50):
 
     log_file = server_dir / "logs" / "latest.log"
     if not log_file.exists():
-        log_warn("logs/latest.log not found — server may not have run yet")
+        log_warn("logs/latest.log not found - server may not have run yet")
         return
 
     try:
@@ -583,11 +604,11 @@ def server_pin(tag):
 
 
 def server_unpin():
-    """Remove the release pin — update will use the latest release."""
+    """Remove the release pin - update will use the latest release."""
     server_config = _load_server_config()
     if not server_config.get("pinned_tag"):
         log_info("Not pinned")
         return
     old = server_config.pop("pinned_tag")
     save_json(Path(".") / SERVER_CONFIG_FILE, server_config)
-    log_ok(f"Unpinned (was {old}) — will track latest release")
+    log_ok(f"Unpinned (was {old}) - will track latest release")
