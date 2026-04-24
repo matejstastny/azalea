@@ -22,11 +22,11 @@ from azalea.commands import (
 from azalea.log import log_err, print_version
 from azalea.server import (
     server_diff,
+    server_info,
     server_init,
     server_logs,
     server_pin,
     server_run,
-    server_status,
     server_unpin,
     server_update,
 )
@@ -111,7 +111,8 @@ def main():
     sv_sub.add_parser("update", help="Update the server from its stored source")
     sv_sub.add_parser("diff", help="Preview changes without applying them")
     sv_sub.add_parser("run", help="Run the server")
-    sv_sub.add_parser("status", help="Show current server config")
+    sv_sub.add_parser("info", help="Show current server config")
+    sv_sub.add_parser("status", help=argparse.SUPPRESS)
 
     slogs = sv_sub.add_parser("logs", help="Tail the server log")
     slogs.add_argument(
@@ -177,8 +178,8 @@ def main():
                 server_diff()
             elif args.server_cmd == "run":
                 server_run()
-            elif args.server_cmd == "status":
-                server_status()
+            elif args.server_cmd in ("info", "status"):
+                server_info()
             elif args.server_cmd == "logs":
                 server_logs(args.lines)
             elif args.server_cmd == "pin":

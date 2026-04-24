@@ -1,9 +1,10 @@
-"""Server management: build, update, diff, start, status, logs, pin, unpin."""
+"""Server management: build, update, diff, start, info, logs, pin, unpin."""
 
 import io
 import json
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -496,7 +497,7 @@ def server_diff():
     print("\n".join(lines))
 
 
-def server_status():
+def server_info():
     """Show current server config."""
     server_config = _load_server_config()
     pack = server_config.get("pack", {})
@@ -519,17 +520,59 @@ def server_status():
     loader_str = f"{Log.BLUE}{pack.get('loader', '?')} {pack.get('loader_version', '?')}{Log.RESET}"
     mods_str = f"{Log.GREEN}{len(server_config.get('mods', {}))}{Log.RESET} server mods"
 
+    server_port = None
+    props_path = server_dir / "server.properties"
+    if props_path.exists():
+        try:
+            for raw in props_path.read_text().splitlines():
+                line = raw.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, val = line.split("=", 1)
+                if key.strip() == "server-port":
+                    parsed_port = val.strip()
+                    if parsed_port:
+                        server_port = parsed_port
+                    break
+        except Exception:
+            pass
+
+    lan_ip = None
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            lan_ip = s.getsockname()[0]
+    except Exception:
+        pass
+
+    if lan_ip and server_port:
+        ip_value = f"{lan_ip}:{server_port}"
+    elif lan_ip:
+        ip_value = f"{lan_ip}:Unknown"
+    elif server_port:
+        ip_value = f"Unknown:{server_port}"
+    else:
+        ip_value = "Unknown"
+
+    ip_str = f"{Log.CYAN}{ip_value}{Log.RESET}"
+
     block = (
         f"{title}  v{pack_version}\n"
         f"{Log.BOLD}Source    {Log.RESET}: {source_str}\n"
         f"{Log.BOLD}Tag       {Log.RESET}: {tag_str}\n"
         f"{Log.BOLD}MC        {Log.RESET}: {mc_str}\n"
         f"{Log.BOLD}Loader    {Log.RESET}: {loader_str}\n"
+        f"{Log.BOLD}Server IP {Log.RESET}: {ip_str}\n"
         f"{Log.BOLD}Mods      {Log.RESET}: {mods_str}\n"
         f"{Log.BOLD}Jar       {Log.RESET}: {jar_str}"
     )
 
     print(block)
+
+
+def server_status():
+    """Backward-compatible alias for `server info`."""
+    server_info()
 
 
 def server_run():
