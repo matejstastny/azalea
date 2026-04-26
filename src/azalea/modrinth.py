@@ -3,6 +3,7 @@
 import sys
 from urllib.error import HTTPError
 from urllib.parse import quote
+from urllib.request import urlopen
 
 from azalea.config import API, MODS
 from azalea.log import Log, clear_lines, log_err, log_info, log_ok, log_warn, spinner
@@ -103,3 +104,38 @@ def find_best_version(project_id, mc, loader):
     if not matches:
         return None
     return matches[0]
+
+
+def download_content(version_id, directory):
+    """Download a mod/resourcepack/shader from Modrinth and save it."""
+    spinner("Downloading content")
+    data = http_json(f"{API}/version/{version_id}")
+    files = data.get("files", [])
+
+    if not files:
+        log_warn("No files found in version")
+        return None
+
+    f = next((item for item in files if item.get("primary")), files[0])
+    filename = f.get("filename") or f"{version_id}.bin"
+    url = f.get("url")
+
+    if url:
+        try:
+            with urlopen(url) as response:
+                content = response.read()
+
+            directory.mkdir(parents=True, exist_ok=True)
+            save_path = directory / filename
+            save_path.write_bytes(content)
+            log_ok(f"Downloaded: {filename}")
+            return str(save_path)
+        except HTTPError as e:
+            log_err(f"Download failed: HTTP {e.code}")
+            return None
+        except Exception as e:
+            log_err(f"Download failed: {e}")
+            return None
+
+    log_warn("Download URL not found")
+    return None

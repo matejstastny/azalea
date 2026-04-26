@@ -16,6 +16,7 @@ Azalea CLI:
         ✔ `azalea check` without an argument should default to the current pack version (sanity check) @done(26-03-05)
         ✔ Support other modloaders than fabric @done(26-03-05)
         ✔ Rework `azalea init` command to improve user experience and streamline the initialization process @done(26-03-05)
+        ✔ Add modpack exporting to server pack zip @started(26-04-23 17:55) @done(26-04-23 23:08) @lasted(5h13m52s)
 
     Bugs:
         ✔ Fix exporting to .mrpack (mc and fabric versions missing in header) @done(26-02-16 11:45)
@@ -32,6 +33,9 @@ Azalea CLI:
         ✔ Redesign `azalea init` UI: cleaner header, aligned labels, section dividers, compact multi-column MC version grid, inline loader row @done(26-03-05)
         ✔ Fix shader loaders when downloading shaders (currently hardcoded options that don't check if required mod is installed, ex. iris, optifine) @done(26-03-05)
         ✔ `azalea.json` does not put an empty line at the bottom @started(26-04-18 11:49) @done(26-04-18 11:52) @lasted(3m47s)
+        ✔ `azalea server run` does not check for java version @started(26-04-23 23:09) @done(26-04-23 23:26) @lasted(17m2s)
+        ✔ `azalea server init` does not accept the eula by default @started(26-04-23 23:28) @done(26-04-24 09:45) @lasted(10h17m46s)
+        ✔ `azalea server init` does not download dependencies of mods. Modrinth is unreliable source of server/client side info, so sometimes deps are client-side @started(26-04-24 09:46) @done(26-04-26 16:06) @lasted(2d6h20m29s)
 
 Miscellaneous:
 --------------

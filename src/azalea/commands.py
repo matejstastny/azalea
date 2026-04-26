@@ -5,7 +5,16 @@ import zipfile
 from pathlib import Path
 from urllib.parse import quote
 
-from azalea.config import API, BASE, CONFIG, MODS, OVERRIDES, RESOURCEPACKS, SHADERPACKS
+from azalea.config import (
+    API,
+    BASE,
+    CLIENT_OVERRIDES,
+    CONFIG,
+    MODS,
+    RESOURCEPACKS,
+    SHADERPACKS,
+    SHARED_OVERRIDES,
+)
 from azalea.log import (
     Log,
     log_err,
@@ -25,7 +34,13 @@ from azalea.minecraft import (
     resolve_target_mc,
 )
 from azalea.modrinth import find_best_version, resolve_project
-from azalea.util import ensure_overrides_dir, http_json, load_config, safe_name, save_json
+from azalea.util import (
+    ensure_pack_dirs,
+    http_json,
+    load_config,
+    safe_name,
+    save_json,
+)
 
 _ALL_CONTENT_DIRS = [
     (MODS, "mod"),
@@ -328,10 +343,11 @@ def export():
     with zipfile.ZipFile(path, "w") as z:
         z.writestr("modrinth.index.json", json.dumps(manifest, indent=2))
 
-        if OVERRIDES.exists():
-            for file in OVERRIDES.rglob("*"):
-                if file.is_file():
-                    z.write(file, f"overrides/{file.relative_to(OVERRIDES)}")
+        for src_dir in (SHARED_OVERRIDES, CLIENT_OVERRIDES):
+            if src_dir.exists():
+                for file in src_dir.rglob("*"):
+                    if file.is_file():
+                        z.write(file, f"overrides/{file.relative_to(src_dir)}")
 
     log_ok(f"Exported {path}")
 
@@ -452,7 +468,7 @@ def init():
         log_warn("Already initialized")
         return
 
-    ensure_overrides_dir()
+    ensure_pack_dirs()
 
     spinner("Fetching Minecraft versions")
     releases = get_release_versions()
@@ -460,7 +476,6 @@ def init():
         log_warn("Could not fetch Minecraft versions; using fallback 1.21")
         releases = [{"version": "1.21", "date": "2024-06-13"}]
 
-    # ── Pack info block ──────────────────────────────────────────────────────
     fields = [
         ("Name", "My Pack"),
         ("Author", ""),
@@ -487,13 +502,9 @@ def init():
     summary += f"  ·  v{version}"
     log_ok(summary)
 
-    # ── Minecraft version block ──────────────────────────────────────────────
     mc_version = _pick_mc_version(releases)
-
-    # ── Loader block ─────────────────────────────────────────────────────────
     loader = _pick_loader()
 
-    # ── Resolve loader version ───────────────────────────────────────────────
     spinner(f"Resolving {loader} loader version")
     loader_version = get_latest_loader_version(loader, mc_version)
     if loader_version:
@@ -699,12 +710,8 @@ def search(query):
     non_mod_types = ["project_type:resourcepack", "project_type:shader", "project_type:datapack"]
     all_types = ["project_type:mod"] + non_mod_types
 
-    # First facet group: restrict to supported project types.
     facet_groups = [all_types]
 
-    # Second facet group: when inside a pack, only show mods that are tagged
-    # for the configured loader.  Resource packs, shaders, and datapacks are
-    # always included because they carry no loader tag.
     if CONFIG.exists():
         try:
             loader = load_config().get("loader", "")
