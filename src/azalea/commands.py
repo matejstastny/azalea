@@ -286,7 +286,44 @@ def check(user_arg=None):
         log_ok(f"All mods support Minecraft {target_mc}")
 
 
-def export():
+def _collect_export_mods(client_only: bool):
+    """Return installed mod entries that should be included in an export."""
+    installed = {}
+    for f in MODS.glob("*.json"):
+        try:
+            data = json.loads(f.read_text())
+        except Exception:
+            continue
+
+        installed[data["project_id"]] = data
+
+    included = set()
+    stack = []
+
+    for data in installed.values():
+        if client_only and data.get("side") == "server":
+            continue
+        pid = data["project_id"]
+        included.add(pid)
+        stack.append(pid)
+
+    while stack:
+        cur = stack.pop()
+        for dep in installed.get(cur, {}).get("dependencies", []):
+            dep_data = installed.get(dep)
+            if not dep_data:
+                continue
+            if client_only and dep_data.get("side") == "server":
+                continue
+            if dep not in included:
+                included.add(dep)
+                stack.append(dep)
+
+    return [installed[pid] for pid in installed if pid in included]
+
+
+def export(client_only: bool = False):
+    """Export a .mrpack archive, optionally filtering out server-side mods."""
     cfg = load_config()
 
     out_dir = BASE / "dist"
@@ -296,7 +333,8 @@ def export():
     pack_ver = safe_name(cfg.get("version", "0"))
     mc_ver = safe_name(cfg.get("minecraft_version", "mc"))
 
-    filename = f"{pack_name}-{pack_ver}-mc{mc_ver}.mrpack"
+    suffix = "-client" if client_only else ""
+    filename = f"{pack_name}-{pack_ver}-mc{mc_ver}{suffix}.mrpack"
     path = out_dir / filename
 
     deps = {
@@ -334,7 +372,24 @@ def export():
                 }
             )
 
-    add_files_from(MODS, "mods")
+    if client_only:
+        for mod in _collect_export_mods(True):
+            hashes = {"sha512": mod["file"]["sha512"]}
+
+            if mod["file"].get("sha1"):
+                hashes["sha1"] = mod["file"]["sha1"]
+
+            manifest["files"].append(
+                {
+                    "path": f"mods/{mod['file']['filename']}",
+                    "hashes": hashes,
+                    "downloads": [mod["file"]["url"]],
+                    "fileSize": mod["file"].get("size", 0),
+                }
+            )
+    else:
+        add_files_from(MODS, "mods")
+
     add_files_from(RESOURCEPACKS, "resourcepacks")
     add_files_from(SHADERPACKS, "shaderpacks")
 

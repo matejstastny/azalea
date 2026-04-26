@@ -17,6 +17,7 @@ Azalea CLI:
         ✔ Support other modloaders than fabric @done(26-03-05)
         ✔ Rework `azalea init` command to improve user experience and streamline the initialization process @done(26-03-05)
         ✔ Add modpack exporting to server pack zip @started(26-04-23 17:55) @done(26-04-23 23:08) @lasted(5h13m52s)
+        ✔ Add `azalea export -c/--client` for client side only export (without mods that are server side only) @started(26-04-24 09:47) @done(26-04-26)
 
     Bugs:
         ✔ Fix exporting to .mrpack (mc and fabric versions missing in header) @done(26-02-16 11:45)

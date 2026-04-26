@@ -66,7 +66,13 @@ def main():
         "mc", nargs="?", help="Target Minecraft version (defaults to current pack version)"
     )
 
-    sub.add_parser("export", help="Export a .mrpack to dist/")
+    exp = sub.add_parser("export", help="Export a .mrpack to dist/")
+    exp.add_argument(
+        "-c",
+        "--client",
+        action="store_true",
+        help="Export client-side content only (skip server-side mods)",
+    )
     sub.add_parser("readme", help="Update README.md mod table")
 
     upd = sub.add_parser("update", help="Update all installed content to latest versions")
@@ -153,7 +159,7 @@ def main():
         elif args.cmd == "check":
             check(args.mc)
         elif args.cmd == "export":
-            export()
+            export(client_only=args.client)
         elif args.cmd == "readme":
             readme()
         elif args.cmd == "update":

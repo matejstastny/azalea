@@ -54,7 +54,7 @@ azalea export            # build a .mrpack archive in dist/
 | `azalea update` | Update all installed content to the latest compatible versions |
 | `azalea upgrade [mc]` | Upgrade the pack to a new Minecraft version |
 | `azalea check [mc]` | Check mod compatibility (defaults to current pack version) |
-| `azalea export` | Export a `.mrpack` archive to `dist/` |
+| `azalea export [-c/--client]` | Export a `.mrpack` archive to `dist/` (optionally client-side only) |
 | `azalea readme` | Regenerate the mod table in your project `README.md` |
 
 <details>
