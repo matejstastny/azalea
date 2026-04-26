@@ -112,15 +112,78 @@ def _download_pack_github(owner, repo, tag, tmp):
 
 
 def _collect_server_mods(pack_root):
-    """Return {slug: version_number} for server-side mods declared in the pack."""
+    """Return {slug: version_number} for server-side mods plus required deps."""
+    cfg_path = pack_root / "azalea.json"
+    if not cfg_path.exists():
+        return {}
+
+    try:
+        cfg = json.loads(cfg_path.read_text())
+    except Exception:
+        return {}
+
+    mc = cfg.get("minecraft_version")
+    loader = cfg.get("loader")
     mods = {}
+    seen_projects = set()
+    processing_projects = set()
+
+    def _required_dependency_ids(version_id, dependency_entries=None):
+        if dependency_entries is None:
+            try:
+                dependency_entries = http_json(f"{API}/version/{version_id}").get(
+                    "dependencies", []
+                )
+            except Exception:
+                return []
+
+        return [
+            dep["project_id"]
+            for dep in dependency_entries
+            if dep.get("dependency_type") == "required" and dep.get("project_id")
+        ]
+
+    def _collect_project(project_id, version_id=None):
+        if project_id in seen_projects or project_id in processing_projects:
+            return
+
+        processing_projects.add(project_id)
+        try:
+            try:
+                project = http_json(f"{API}/project/{project_id}")
+            except Exception:
+                return
+
+            slug = project.get("slug", project_id)
+
+            if version_id:
+                try:
+                    version = http_json(f"{API}/version/{version_id}")
+                except Exception:
+                    return
+            else:
+                version = find_best_version(project_id, mc, loader)
+                if not version:
+                    return
+
+            seen_projects.add(project_id)
+            mods[slug] = version.get("version_number", "?")
+
+            for dep_project_id in _required_dependency_ids(
+                version["id"], version.get("dependencies")
+            ):
+                _collect_project(dep_project_id)
+        finally:
+            processing_projects.discard(project_id)
+
     mods_dir = pack_root / "mods"
     if mods_dir.exists():
         for f in mods_dir.glob("*.json"):
             try:
                 data = json.loads(f.read_text())
-                if data.get("side") in ("server", "both"):
-                    mods[data["slug"]] = data.get("version_number", "?")
+                if data.get("side") not in ("server", "both"):
+                    continue
+                _collect_project(data["project_id"], data.get("version_id"))
             except Exception:
                 pass
     return mods
@@ -262,6 +325,80 @@ def _ensure_fabric_api(mod_versions, mods_dir, mc, loader):
     mod_versions["fabric-api"] = version.get("version_number", "?")
 
 
+def _download_server_mods(pack_root, mods_dir, mc, loader):
+    """Download server-side mods declared in the pack and their required deps."""
+    mod_versions = {}
+    seen_projects = set()
+    processing_projects = set()
+
+    def _required_dependency_ids(version_id, dependency_entries=None):
+        if dependency_entries is None:
+            try:
+                dependency_entries = http_json(f"{API}/version/{version_id}").get(
+                    "dependencies", []
+                )
+            except Exception:
+                return []
+
+        return [
+            dep["project_id"]
+            for dep in dependency_entries
+            if dep.get("dependency_type") == "required" and dep.get("project_id")
+        ]
+
+    def _download_project(project_id, version_id=None):
+        if project_id in seen_projects or project_id in processing_projects:
+            return
+
+        processing_projects.add(project_id)
+        try:
+            try:
+                project = http_json(f"{API}/project/{project_id}")
+            except Exception as e:
+                log_warn(f"Skipped dependency {project_id}: {e}")
+                return
+
+            slug = project.get("slug", project_id)
+
+            if version_id:
+                try:
+                    version = http_json(f"{API}/version/{version_id}")
+                except Exception as e:
+                    log_warn(f"Skipped {slug}: {e}")
+                    return
+            else:
+                version = find_best_version(project_id, mc, loader)
+                if not version:
+                    log_warn(f"No compatible version for dependency {slug}")
+                    return
+
+            if not download_content(version["id"], mods_dir):
+                return
+
+            seen_projects.add(project_id)
+            mod_versions[slug] = version.get("version_number", "?")
+
+            for dep_project_id in _required_dependency_ids(
+                version["id"], version.get("dependencies")
+            ):
+                _download_project(dep_project_id)
+        finally:
+            processing_projects.discard(project_id)
+
+    mods_src = pack_root / "mods"
+    if mods_src.exists():
+        for f in mods_src.glob("*.json"):
+            try:
+                data = json.loads(f.read_text())
+                if data.get("side") not in ("server", "both"):
+                    continue
+                _download_project(data["project_id"], data.get("version_id"))
+            except Exception as e:
+                log_warn(f"Skipped {f.stem}: {e}")
+
+    return mod_versions
+
+
 def _build(pack_root, source, installed_tag, accept_eula):
     """Core build: download mods + jar, apply overrides, write server config."""
     cfg_path = pack_root / "azalea.json"
@@ -283,18 +420,7 @@ def _build(pack_root, source, installed_tag, accept_eula):
     mods_dir.mkdir()
 
     # Download server-side mods
-    mod_versions = {}
-    mods_src = pack_root / "mods"
-    if mods_src.exists():
-        for f in mods_src.glob("*.json"):
-            try:
-                data = json.loads(f.read_text())
-                if data.get("side") not in ("server", "both"):
-                    continue
-                if download_content(data["version_id"], mods_dir):
-                    mod_versions[data["slug"]] = data.get("version_number", "?")
-            except Exception as e:
-                log_warn(f"Skipped {f.stem}: {e}")
+    mod_versions = _download_server_mods(pack_root, mods_dir, mc, loader)
 
     _ensure_fabric_api(mod_versions, mods_dir, mc, loader)
     log_ok(f"Downloaded {len(mod_versions)} server mods")
