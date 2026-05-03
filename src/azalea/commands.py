@@ -1,5 +1,6 @@
 """All CLI command implementations."""
 
+import io
 import json
 import zipfile
 from pathlib import Path
@@ -11,6 +12,7 @@ from azalea.config import (
     CLIENT_OVERRIDES,
     CONFIG,
     MODS,
+    PRESETS_OVERRIDES,
     RESOURCEPACKS,
     SHADERPACKS,
     SHARED_OVERRIDES,
@@ -286,6 +288,18 @@ def check(user_arg=None):
         log_ok(f"All mods support Minecraft {target_mc}")
 
 
+def _collect_overrides(*src_dirs: Path) -> dict[str, Path]:
+    """Collect override files from directories, later dirs win on path collision."""
+    result: dict[str, Path] = {}
+    for src_dir in src_dirs:
+        if not src_dir.exists():
+            continue
+        for file in src_dir.rglob("*"):
+            if file.is_file():
+                result[str(file.relative_to(src_dir))] = file
+    return result
+
+
 def _collect_export_mods(client_only: bool):
     """Return installed mod entries that should be included in an export."""
     installed = {}
@@ -395,16 +409,33 @@ def export(client_only: bool = False):
 
     spinner("Building mrpack archive", duration=0.8)
 
-    with zipfile.ZipFile(path, "w") as z:
-        z.writestr("modrinth.index.json", json.dumps(manifest, indent=2))
+    presets = (
+        sorted([d for d in PRESETS_OVERRIDES.iterdir() if d.is_dir()])
+        if client_only and PRESETS_OVERRIDES.exists()
+        else []
+    )
 
-        for src_dir in (SHARED_OVERRIDES, CLIENT_OVERRIDES):
-            if src_dir.exists():
-                for file in src_dir.rglob("*"):
-                    if file.is_file():
-                        z.write(file, f"overrides/{file.relative_to(src_dir)}")
-
-    log_ok(f"Exported {path}")
+    if presets:
+        outer_path = out_dir / f"{pack_name}-{pack_ver}-mc{mc_ver}-client-presets.zip"
+        with zipfile.ZipFile(outer_path, "w") as outer_zip:
+            for preset_dir in presets:
+                preset_name = safe_name(preset_dir.name)
+                inner_filename = f"{preset_name}.mrpack"
+                buf = io.BytesIO()
+                with zipfile.ZipFile(buf, "w") as inner_zip:
+                    inner_zip.writestr("modrinth.index.json", json.dumps(manifest, indent=2))
+                    for rel, file in _collect_overrides(
+                        SHARED_OVERRIDES, CLIENT_OVERRIDES, preset_dir
+                    ).items():
+                        inner_zip.write(file, f"overrides/{rel}")
+                outer_zip.writestr(inner_filename, buf.getvalue())
+        log_ok(f"Exported {outer_path}")
+    else:
+        with zipfile.ZipFile(path, "w") as z:
+            z.writestr("modrinth.index.json", json.dumps(manifest, indent=2))
+            for rel, file in _collect_overrides(SHARED_OVERRIDES, CLIENT_OVERRIDES).items():
+                z.write(file, f"overrides/{rel}")
+        log_ok(f"Exported {path}")
 
 
 _LETTERS = "abcdefghijklmnopqrstuvwxyz"
