@@ -420,7 +420,7 @@ def export(client_only: bool = False):
         with zipfile.ZipFile(outer_path, "w") as outer_zip:
             for preset_dir in presets:
                 preset_name = safe_name(preset_dir.name)
-                inner_filename = f"{pack_name}-{pack_ver}-mc{mc_ver}-{preset_name}.mrpack"
+                inner_filename = f"{preset_name}.mrpack"
                 buf = io.BytesIO()
                 with zipfile.ZipFile(buf, "w") as inner_zip:
                     inner_zip.writestr("modrinth.index.json", json.dumps(manifest, indent=2))
