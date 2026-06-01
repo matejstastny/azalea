@@ -409,25 +409,29 @@ def export(client_only: bool = False):
 
     spinner("Building mrpack archive", duration=0.8)
 
-    presets = (
-        sorted([d for d in PRESETS_OVERRIDES.iterdir() if d.is_dir()])
-        if client_only and PRESETS_OVERRIDES.exists()
-        else []
-    )
+    if client_only and PRESETS_OVERRIDES.exists():
+        presets = sorted(
+            [p for p in PRESETS_OVERRIDES.iterdir() if p.is_file() and p.suffix == ".txt"]
+        )
+    else:
+        presets = []
 
     if presets:
         outer_path = out_dir / f"{pack_name}-{pack_ver}-mc{mc_ver}-client-presets.zip"
         with zipfile.ZipFile(outer_path, "w") as outer_zip:
-            for preset_dir in presets:
-                preset_name = safe_name(preset_dir.name)
+            for preset_file in presets:
+                preset_name = safe_name(preset_file.stem)
                 inner_filename = f"{preset_name}.mrpack"
                 buf = io.BytesIO()
                 with zipfile.ZipFile(buf, "w") as inner_zip:
                     inner_zip.writestr("modrinth.index.json", json.dumps(manifest, indent=2))
-                    for rel, file in _collect_overrides(
-                        SHARED_OVERRIDES, CLIENT_OVERRIDES, preset_dir
-                    ).items():
+                    for rel, file in _collect_overrides(SHARED_OVERRIDES, CLIENT_OVERRIDES).items():
                         inner_zip.write(file, f"overrides/{rel}")
+                    try:
+                        options_content = preset_file.read_text()
+                    except Exception:
+                        options_content = ""
+                    inner_zip.writestr("overrides/options.txt", options_content)
                 outer_zip.writestr(inner_filename, buf.getvalue())
         log_ok(f"Exported {outer_path}")
     else:

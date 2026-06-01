@@ -66,12 +66,19 @@ def main():
         "mc", nargs="?", help="Target Minecraft version (defaults to current pack version)"
     )
 
-    exp = sub.add_parser("export", help="Export a .mrpack to dist/")
+    exp = sub.add_parser(
+        "export",
+        help="Export a .mrpack to dist/ (presets: overrides/presets/*.txt -> overrides/options.txt)",
+    )
     exp.add_argument(
         "-c",
         "--client",
         action="store_true",
-        help="Export client-side content only (skip server-side mods)",
+        help=(
+            "Export client-side content only (skip server-side mods). "
+            "When using presets: place <preset-name>.txt files in overrides/presets; "
+            "their contents will be used as overrides/options.txt inside each preset .mrpack."
+        ),
     )
     sub.add_parser("readme", help="Update README.md mod table")
 
