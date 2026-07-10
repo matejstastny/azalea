@@ -1,7 +1,8 @@
 {
     "recommendations": [
         "donjayamanne.python-extension-pack",
-        "fabiospampinato.vscode-todo-plus",
-        "charliermarsh.ruff"
+        "charliermarsh.ruff",
+        "ms-python.mypy-type-checker",
+        "fabiospampinato.vscode-todo-plus"
     ]
 }

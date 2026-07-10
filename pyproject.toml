@@ -3,8 +3,11 @@ name = "azalea"
 version = "0.1.0"
 description = "A Python Minecraft Modpack manager"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = []
+
+[project.optional-dependencies]
+dev = ["ruff>=0.9", "mypy>=1.0", "pre-commit>=4.0"]
 
 [project.scripts]
 azalea = "azalea.cli:main"
@@ -20,7 +23,7 @@ where = ["src"]
 line-length = 100
 indent-width = 4
 
-target-version = "py39"
+target-version = "py310"
 
 lint.fixable = ["ALL"]
 lint.unfixable = []
@@ -38,4 +41,10 @@ line-ending = "auto"
 docstring-code-format = true
 
 docstring-code-line-length = "dynamic"
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_configs = true
+warn_return_any = true
+check_untyped_defs = true
 

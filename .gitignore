@@ -8,6 +8,10 @@ Icon
 ### python ###
 *.egg-info
 __pycache__
+.venv/
+dist/
+.mypy_cache/
+.ruff_cache/
 
 ### testing folder ###
 modpack-test

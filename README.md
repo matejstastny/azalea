@@ -4,7 +4,7 @@
 
 **A minimal CLI for managing Minecraft modpacks - powered by Modrinth**
 
-[![Python](https://img.shields.io/badge/python-3.9+-3776AB?logo=python&logoColor=white&style=flat-square)](https://python.org)
+[![Python](https://img.shields.io/badge/python-3.10+-3776AB?logo=python&logoColor=white&style=flat-square)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](LICENSE)
 [![pipx](https://img.shields.io/badge/install-pipx-0ea5e9?style=flat-square)](https://pipx.pypa.io)
 [![Modrinth](https://img.shields.io/badge/modrinth-api-1bd96a?logo=modrinth&logoColor=white&style=flat-square)](https://modrinth.com)

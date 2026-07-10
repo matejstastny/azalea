@@ -197,9 +197,9 @@ def install_from_file(file_path: str):
         log_err(f"File not found: {file_path}")
         return
 
-    failed = []
-    installed_any = []
-    installed = set()
+    failed: list[str] = []
+    installed_any: list[str] = []
+    installed: set[str] = set()
 
     for raw in p.read_text().splitlines():
         line = raw.strip()
@@ -519,6 +519,7 @@ def _pick_mc_version(releases: list) -> str:
         if not raw:
             raw = "a"
 
+        selected: str
         if len(raw) == 1 and raw in _LETTERS[:n]:
             selected = recent[_LETTERS.index(raw)]["version"]
         elif raw in all_valid:
@@ -589,7 +590,7 @@ def init():
         ("Version", "0.1.0"),
         ("License", ""),
     ]
-    values = []
+    values: list[str] = []
 
     save_cursor()
     for i, (label, default) in enumerate(fields):
@@ -684,10 +685,7 @@ def update_all(force=False):
     loader = cfg["loader"]
 
     all_files = [
-        f
-        for dir_path, _ in _ALL_CONTENT_DIRS
-        if dir_path.exists()
-        for f in dir_path.glob("*.json")
+        f for dir_path, _ in _ALL_CONTENT_DIRS if dir_path.exists() for f in dir_path.glob("*.json")
     ]
 
     def _update_one(f):
@@ -938,9 +936,9 @@ def list_installed():
         log_warn("Nothing installed")
         return
 
-    for slug, type_name, side, version, flags in rows:
+    for slug, type_name, side, version, flag_str in rows:
         print(
             f"  {Log.BOLD}{Log.CYAN}{slug}{Log.RESET}"
             f"  {Log.YELLOW}{version}{Log.RESET}"
-            f"  [{type_name} · {side}]{flags}"
+            f"  [{type_name} · {side}]{flag_str}"
         )
