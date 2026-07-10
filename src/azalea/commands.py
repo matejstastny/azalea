@@ -3,6 +3,7 @@
 import io
 import json
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib.parse import quote
 
@@ -25,7 +26,7 @@ from azalea.log import (
     log_warn,
     restore_cursor_clear,
     save_cursor,
-    spinner,
+    spinning,
 )
 from azalea.minecraft import (
     SUPPORTED_LOADERS,
@@ -60,21 +61,31 @@ def _find_installed(slug):
     return None, None
 
 
+def _project_id_to_slug():
+    """Build a {project_id: slug} map from all installed content."""
+    mapping = {}
+    for dir_path, _ in _ALL_CONTENT_DIRS:
+        for f in dir_path.glob("*.json"):
+            try:
+                d = json.loads(f.read_text())
+                mapping[d["project_id"]] = d["slug"]
+            except Exception:
+                pass
+    return mapping
+
+
 def _check_compat(target_mc, loader):
     """Check all installed mods for compatibility with target_mc.
 
     Returns list of incompatible slugs.
     """
-    incompatible = []
-    for f in MODS.glob("*.json"):
+    files = list(MODS.glob("*.json"))
+
+    def _check_one(f):
         mod = json.loads(f.read_text())
         pid = mod["project_id"]
         slug = mod["slug"]
-
-        spinner(f"Checking {slug}", duration=0.2)
-
         versions = http_json(f"{API}/project/{pid}/version")
-
         compatible = any(
             mc_version_matches(target_mc, v.get("game_versions", []))
             and (
@@ -84,11 +95,12 @@ def _check_compat(target_mc, loader):
             )
             for v in versions
         )
+        return None if compatible else slug
 
-        if not compatible:
-            incompatible.append(slug)
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(_check_one, files))
 
-    return incompatible
+    return [r for r in results if r is not None]
 
 
 def install_mod(identifier, installed=None, explicit=True):
@@ -124,17 +136,19 @@ def install_mod(identifier, installed=None, explicit=True):
         return
     installed.add(slug)
 
-    version = find_best_version(pid, mc, loader)
+    with spinning(f"Resolving {slug}"):
+        version = find_best_version(pid, mc, loader)
     if not version:
         if project_type == "resourcepack":
             log_warn(f"No version of {slug} matches Minecraft {mc}; installing latest available")
-            all_versions = http_json(f"{API}/project/{pid}/version")
+            with spinning(f"Fetching versions for {slug}"):
+                all_versions = http_json(f"{API}/project/{pid}/version")
             version = all_versions[0] if all_versions else None
         if not version:
             log_err(f"No compatible version for {slug}")
             return
 
-    file = version["files"][0]
+    file = next((f for f in version["files"] if f.get("primary")), version["files"][0])
     file_size = file.get("size", 0)
 
     deps = [d["project_id"] for d in version["dependencies"] if d["dependency_type"] == "required"]
@@ -279,7 +293,8 @@ def check(user_arg=None):
     else:
         target_mc = resolve_target_mc(user_arg)
 
-    incompatible = _check_compat(target_mc, loader)
+    with spinning(f"Checking mods against MC {target_mc}"):
+        incompatible = _check_compat(target_mc, loader)
 
     if incompatible:
         for slug in incompatible:
@@ -407,8 +422,6 @@ def export(client_only: bool = False):
     add_files_from(RESOURCEPACKS, "resourcepacks")
     add_files_from(SHADERPACKS, "shaderpacks")
 
-    spinner("Building mrpack archive", duration=0.8)
-
     if client_only and PRESETS_OVERRIDES.exists():
         presets = sorted(
             [p for p in PRESETS_OVERRIDES.iterdir() if p.is_file() and p.suffix == ".txt"]
@@ -418,27 +431,31 @@ def export(client_only: bool = False):
 
     if presets:
         outer_path = out_dir / f"{pack_name}-{pack_ver}-mc{mc_ver}-client-presets.zip"
-        with zipfile.ZipFile(outer_path, "w") as outer_zip:
-            for preset_file in presets:
-                preset_name = safe_name(preset_file.stem)
-                inner_filename = f"{preset_name}.mrpack"
-                buf = io.BytesIO()
-                with zipfile.ZipFile(buf, "w") as inner_zip:
-                    inner_zip.writestr("modrinth.index.json", json.dumps(manifest, indent=2))
-                    for rel, file in _collect_overrides(SHARED_OVERRIDES, CLIENT_OVERRIDES).items():
-                        inner_zip.write(file, f"overrides/{rel}")
-                    try:
-                        options_content = preset_file.read_text()
-                    except Exception:
-                        options_content = ""
-                    inner_zip.writestr("overrides/options.txt", options_content)
-                outer_zip.writestr(inner_filename, buf.getvalue())
+        with spinning("Building mrpack archive"):
+            with zipfile.ZipFile(outer_path, "w") as outer_zip:
+                for preset_file in presets:
+                    preset_name = safe_name(preset_file.stem)
+                    inner_filename = f"{preset_name}.mrpack"
+                    buf = io.BytesIO()
+                    with zipfile.ZipFile(buf, "w") as inner_zip:
+                        inner_zip.writestr("modrinth.index.json", json.dumps(manifest, indent=2))
+                        for rel, file in _collect_overrides(
+                            SHARED_OVERRIDES, CLIENT_OVERRIDES
+                        ).items():
+                            inner_zip.write(file, f"overrides/{rel}")
+                        try:
+                            options_content = preset_file.read_text()
+                        except Exception:
+                            options_content = ""
+                        inner_zip.writestr("overrides/options.txt", options_content)
+                    outer_zip.writestr(inner_filename, buf.getvalue())
         log_ok(f"Exported {outer_path}")
     else:
-        with zipfile.ZipFile(path, "w") as z:
-            z.writestr("modrinth.index.json", json.dumps(manifest, indent=2))
-            for rel, file in _collect_overrides(SHARED_OVERRIDES, CLIENT_OVERRIDES).items():
-                z.write(file, f"overrides/{rel}")
+        with spinning("Building mrpack archive"):
+            with zipfile.ZipFile(path, "w") as z:
+                z.writestr("modrinth.index.json", json.dumps(manifest, indent=2))
+                for rel, file in _collect_overrides(SHARED_OVERRIDES, CLIENT_OVERRIDES).items():
+                    z.write(file, f"overrides/{rel}")
         log_ok(f"Exported {path}")
 
 
@@ -495,7 +512,7 @@ def _pick_mc_version(releases: list) -> str:
             print(f"{Log.CYAN}{conn}{Log.RESET} {Log.BOLD}{_LETTERS[i]}){Log.RESET} {r['version']}")
 
         try:
-            raw = input(f"{Log.CYAN} Enter letter or version:{Log.RESET} ").strip().lower()
+            raw = input(f"{Log.CYAN} Enter letter or version:{Log.RESET} ").strip().lower()
         except (EOFError, KeyboardInterrupt):
             raw = "a"
 
@@ -560,8 +577,8 @@ def init():
 
     ensure_pack_dirs()
 
-    spinner("Fetching Minecraft versions")
-    releases = get_release_versions()
+    with spinning("Fetching Minecraft versions"):
+        releases = get_release_versions()
     if not releases:
         log_warn("Could not fetch Minecraft versions; using fallback 1.21")
         releases = [{"version": "1.21", "date": "2024-06-13"}]
@@ -595,8 +612,8 @@ def init():
     mc_version = _pick_mc_version(releases)
     loader = _pick_loader()
 
-    spinner(f"Resolving {loader} loader version")
-    loader_version = get_latest_loader_version(loader, mc_version)
+    with spinning(f"Resolving {loader} loader version"):
+        loader_version = get_latest_loader_version(loader, mc_version)
     if loader_version:
         log_info(f"Using {loader} {loader_version}")
     else:
@@ -626,8 +643,8 @@ def upgrade(target_mc_arg=None):
     if target_mc_arg:
         target_mc = resolve_target_mc(target_mc_arg)
     else:
-        spinner("Resolving latest Minecraft version")
-        latest = get_latest_release_version()
+        with spinning("Resolving latest Minecraft version"):
+            latest = get_latest_release_version()
         if not latest:
             log_err("Could not resolve latest Minecraft version")
             return
@@ -637,9 +654,8 @@ def upgrade(target_mc_arg=None):
         log_warn(f"Pack already on Minecraft {current_mc}")
         return
 
-    spinner(f"Checking upgrade compatibility: {current_mc} → {target_mc}")
-
-    incompatible = _check_compat(target_mc, loader)
+    with spinning(f"Checking upgrade compatibility: {current_mc} → {target_mc}"):
+        incompatible = _check_compat(target_mc, loader)
 
     if incompatible:
         log_err("Upgrade blocked. These mods have no compatible version:")
@@ -667,65 +683,63 @@ def update_all(force=False):
     mc = cfg["minecraft_version"]
     loader = cfg["loader"]
 
-    updated = []
-    skipped = []
-    failed = []
+    all_files = [
+        f
+        for dir_path, _ in _ALL_CONTENT_DIRS
+        if dir_path.exists()
+        for f in dir_path.glob("*.json")
+    ]
 
-    def update_from(dir_path):
-        if not dir_path.exists():
-            return
+    def _update_one(f):
+        try:
+            data = json.loads(f.read_text())
+            pid = data["project_id"]
+            slug = data.get("slug", pid)
+            current_version = data.get("version_id")
 
-        for f in dir_path.glob("*.json"):
-            try:
-                data = json.loads(f.read_text())
-                pid = data["project_id"]
-                slug = data.get("slug", pid)
-                current_version = data.get("version_id")
+            if data.get("pinned"):
+                return ("skipped", f"{slug} (pinned)")
 
-                if data.get("pinned"):
-                    skipped.append(f"{slug} (pinned)")
-                    continue
+            newest = find_best_version(pid, mc, loader)
+            if not newest:
+                return ("failed", slug)
 
-                spinner(f"Checking {slug}", duration=0.2)
+            if newest["id"] == current_version and not force:
+                return ("skipped", slug)
 
-                newest = find_best_version(pid, mc, loader)
-                if not newest:
-                    failed.append(slug)
-                    continue
+            file = next((f for f in newest["files"] if f.get("primary")), newest["files"][0])
 
-                if newest["id"] == current_version and not force:
-                    skipped.append(slug)
-                    continue
+            data.update(
+                {
+                    "version_id": newest["id"],
+                    "version_number": newest.get("version_number", "?"),
+                    "file": {
+                        "url": file["url"],
+                        "filename": file["filename"],
+                        "sha512": file["hashes"]["sha512"],
+                        "sha1": file["hashes"].get("sha1"),
+                        "size": file.get("size", 0),
+                    },
+                    "dependencies": [
+                        d["project_id"]
+                        for d in newest.get("dependencies", [])
+                        if d.get("dependency_type") == "required"
+                    ],
+                }
+            )
 
-                file = newest["files"][0]
+            save_json(f, data)
+            return ("updated", slug)
+        except Exception:
+            return ("failed", f.stem)
 
-                data.update(
-                    {
-                        "version_id": newest["id"],
-                        "version_number": newest.get("version_number", "?"),
-                        "file": {
-                            "url": file["url"],
-                            "filename": file["filename"],
-                            "sha512": file["hashes"]["sha512"],
-                            "sha1": file["hashes"].get("sha1"),
-                            "size": file.get("size", 0),
-                        },
-                        "dependencies": [
-                            d["project_id"]
-                            for d in newest.get("dependencies", [])
-                            if d.get("dependency_type") == "required"
-                        ],
-                    }
-                )
+    with spinning("Checking for updates"):
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            results = list(pool.map(_update_one, all_files))
 
-                save_json(f, data)
-                updated.append(slug)
-            except Exception:
-                failed.append(f.stem)
-
-    update_from(MODS)
-    update_from(RESOURCEPACKS)
-    update_from(SHADERPACKS)
+    updated = [slug for status, slug in results if status == "updated"]
+    skipped = [slug for status, slug in results if status == "skipped"]
+    failed = [slug for status, slug in results if status == "failed"]
 
     if updated:
         log_ok(f"Updated {len(updated)} projects: " + ", ".join(updated))
@@ -811,8 +825,8 @@ def search(query):
             pass
 
     facets = quote(json.dumps(facet_groups))
-    spinner("Searching Modrinth…")
-    data = http_json(f"{API}/search?query={quote(query)}&limit=10&facets={facets}")
+    with spinning("Searching Modrinth"):
+        data = http_json(f"{API}/search?query={quote(query)}&limit=10&facets={facets}")
     hits = data.get("hits", [])
 
     if not hits:
@@ -850,6 +864,9 @@ def info(slug):
     explicit = data.get("explicit", True)
     deps = data.get("dependencies", [])
 
+    id_map = _project_id_to_slug()
+    dep_slugs = [id_map.get(d, d) for d in deps]
+
     print()
     print(f"  {Log.BOLD}{Log.CYAN}{data['slug']}{Log.RESET}")
     print(f"  {'Type':<12}: {type_name}")
@@ -857,8 +874,8 @@ def info(slug):
     print(f"  {'Side':<12}: {data.get('side', '?')}")
     print(f"  {'Explicit':<12}: {explicit}")
     print(f"  {'Pinned':<12}: {pinned}")
-    if deps:
-        print(f"  {'Dependencies':<12}: {', '.join(deps)}")
+    if dep_slugs:
+        print(f"  {'Dependencies':<12}: {', '.join(dep_slugs)}")
     print(f"  {'URL':<12}: https://modrinth.com/project/{data['slug']}")
     print()
 
@@ -888,3 +905,42 @@ def unpin_mod(slug):
     del data["pinned"]
     save_json(p, data)
     log_ok(f"Unpinned {slug}")
+
+
+def list_installed():
+    """List all installed mods, resource packs, and shaders."""
+    rows = []
+    for dir_path, type_name in _ALL_CONTENT_DIRS:
+        if not dir_path.exists():
+            continue
+        for f in sorted(dir_path.glob("*.json")):
+            try:
+                d = json.loads(f.read_text())
+            except Exception:
+                continue
+            flags = []
+            if d.get("pinned"):
+                flags.append("pinned")
+            if not d.get("explicit", True):
+                flags.append("dep")
+            flag_str = f"  [{', '.join(flags)}]" if flags else ""
+            rows.append(
+                (
+                    d.get("slug", f.stem),
+                    type_name,
+                    d.get("side", "?"),
+                    d.get("version_number", "?"),
+                    flag_str,
+                )
+            )
+
+    if not rows:
+        log_warn("Nothing installed")
+        return
+
+    for slug, type_name, side, version, flags in rows:
+        print(
+            f"  {Log.BOLD}{Log.CYAN}{slug}{Log.RESET}"
+            f"  {Log.YELLOW}{version}{Log.RESET}"
+            f"  [{type_name} · {side}]{flags}"
+        )

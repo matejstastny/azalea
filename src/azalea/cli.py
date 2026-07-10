@@ -10,6 +10,7 @@ from azalea.commands import (
     init,
     install_from_file,
     install_mod,
+    list_installed,
     pin_mod,
     readme,
     remove_from_file,
@@ -44,6 +45,8 @@ def main():
     )
 
     sub.add_parser("init")
+
+    sub.add_parser("list", help="List installed mods, resource packs, and shaders")
 
     a = sub.add_parser("add", help="Add a Modrinth mod")
     a.add_argument("mod", nargs="?", help="Mod name or slug")
@@ -147,6 +150,8 @@ def main():
             print_version()
         elif args.cmd == "init":
             init()
+        elif args.cmd == "list":
+            list_installed()
         elif args.cmd == "add":
             if args.file:
                 install_from_file(args.file)

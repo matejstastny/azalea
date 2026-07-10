@@ -2,7 +2,8 @@
 
 import platform
 import sys
-import time
+import threading
+from contextlib import contextmanager
 from importlib.metadata import PackageNotFoundError, version
 
 
@@ -18,23 +19,23 @@ class Log:
 
 
 def log_info(msg):
-    print(f"{Log.CYAN} {msg}{Log.RESET}")
+    print(f"{Log.CYAN} {msg}{Log.RESET}")
 
 
 def log_ok(msg):
-    print(f"{Log.GREEN} {msg}{Log.RESET}")
+    print(f"{Log.GREEN} {msg}{Log.RESET}")
 
 
 def log_warn(msg):
-    print(f"{Log.YELLOW} {msg}{Log.RESET}")
+    print(f"{Log.YELLOW} {msg}{Log.RESET}", file=sys.stderr)
 
 
 def log_err(msg):
-    print(f"{Log.RED} {msg}{Log.RESET}")
+    print(f"{Log.RED} {msg}{Log.RESET}", file=sys.stderr)
 
 
 def log_deb(msg):
-    print(f"{Log.PURPLE}󰨰 {msg}{Log.RESET}")
+    print(f"{Log.PURPLE}· {msg}{Log.RESET}")
 
 
 def clear_lines(n):
@@ -56,18 +57,28 @@ def restore_cursor_clear():
     sys.stdout.flush()
 
 
-def spinner(msg, duration=0.6):
-    frames = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
-    end = time.time() + duration
-    i = 0
-    while time.time() < end:
-        sys.stdout.write(f"\r{Log.BLUE}{frames[i % len(frames)]} {msg}{Log.RESET}")
-        sys.stdout.flush()
-        time.sleep(0.05)
-        i += 1
-    sys.stdout.write("\r")
-    sys.stdout.write("\033[2K")
-    print(f"{Log.BLUE}󱗾 {msg}{Log.RESET}")
+@contextmanager
+def spinning(msg):
+    """Context manager that shows a braille spinner while the body executes."""
+    stop = threading.Event()
+
+    def _spin():
+        frames = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+        i = 0
+        while not stop.wait(0.05):
+            sys.stdout.write(f"\r{Log.BLUE}{frames[i % len(frames)]} {msg}{Log.RESET}")
+            sys.stdout.flush()
+            i += 1
+        sys.stdout.write("\r\033[2K")
+        print(f"{Log.BLUE}✓ {msg}{Log.RESET}")
+
+    t = threading.Thread(target=_spin, daemon=True)
+    t.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        t.join()
 
 
 def get_version() -> str:

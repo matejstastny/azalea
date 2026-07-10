@@ -6,7 +6,7 @@ from urllib.parse import quote
 from urllib.request import urlopen
 
 from azalea.config import API, MODS
-from azalea.log import Log, clear_lines, log_err, log_info, log_ok, log_warn, spinner
+from azalea.log import Log, clear_lines, log_err, log_info, log_ok, log_warn, spinning
 from azalea.minecraft import mc_version_matches
 from azalea.util import http_json
 
@@ -33,22 +33,27 @@ def search_projects(query):
     facets = quote(
         '[["project_type:mod","project_type:resourcepack","project_type:shader","project_type:datapack"]]'
     )
-    data = http_json(f"{API}/search?query={quote(query)}&limit=10&facets={facets}")
+    with spinning("Searching Modrinth"):
+        data = http_json(f"{API}/search?query={quote(query)}&limit=10&facets={facets}")
     hits = data.get("hits", [])
 
     if not hits:
         log_warn("No matching projects found")
         return None
 
-    spinner("Searching Modrinth…")
-    spinner("Fetching results…")
-
     log_info("Select a project:")
+    printed_lines = 1
     for i, h in enumerate(hits, 1):
         title = h.get("title") or h.get("slug")
-        print(f"  {Log.BOLD}{i}){Log.RESET} {title}")
-
-    printed_lines = len(hits) + 1
+        desc = (h.get("description", "") or "")[:80]
+        downloads = h.get("downloads", 0)
+        print(f"  {Log.BOLD}{i}){Log.RESET} {Log.CYAN}{title}{Log.RESET}")
+        printed_lines += 1
+        if desc:
+            print(f"     {desc}")
+            printed_lines += 1
+        print(f"     {Log.GREEN}{downloads:,} downloads{Log.RESET}")
+        printed_lines += 1
 
     while True:
         choice = input("Enter number (or press Enter to cancel): ").strip()
@@ -86,7 +91,6 @@ def resolve_project(user_input):
 
 
 def find_best_version(project_id, mc, loader):
-    spinner("Resolving compatible version")
     versions = http_json(f"{API}/project/{project_id}/version")
     shader_loaders = _installed_shader_loaders()
     matches = [
@@ -108,7 +112,6 @@ def find_best_version(project_id, mc, loader):
 
 def download_content(version_id, directory):
     """Download a mod/resourcepack/shader from Modrinth and save it."""
-    spinner("Downloading content")
     data = http_json(f"{API}/version/{version_id}")
     files = data.get("files", [])
 
@@ -122,8 +125,9 @@ def download_content(version_id, directory):
 
     if url:
         try:
-            with urlopen(url) as response:
-                content = response.read()
+            with spinning(f"Downloading {filename}"):
+                with urlopen(url) as response:
+                    content = response.read()
 
             directory.mkdir(parents=True, exist_ok=True)
             save_path = directory / filename

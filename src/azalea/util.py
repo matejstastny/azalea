@@ -10,7 +10,7 @@ from azalea.log import log_err
 
 def http_json(url):
     req = Request(url, headers={"User-Agent": "azalea/0.1"})
-    with urlopen(req) as r:
+    with urlopen(req, timeout=10) as r:
         return json.loads(r.read().decode())
 
 

@@ -13,7 +13,7 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 
 from azalea.config import API, BASE, SERVER_OVERRIDES, SHARED_OVERRIDES
-from azalea.log import Log, log_err, log_info, log_ok, log_warn, spinner
+from azalea.log import Log, log_err, log_info, log_ok, log_warn, spinning
 from azalea.minecraft import get_latest_fabric_installer_version
 from azalea.modrinth import download_content, find_best_version
 from azalea.util import download_file, http_json, save_json
@@ -76,7 +76,7 @@ def _github_release(owner, repo, tag):
         headers={"User-Agent": "azalea/0.1", "Accept": "application/vnd.github.v3+json"},
     )
     try:
-        with urlopen(req) as r:
+        with urlopen(req, timeout=10) as r:
             return json.loads(r.read().decode())
     except Exception as e:
         log_err(f"Failed to fetch release from GitHub: {e}")
@@ -91,10 +91,10 @@ def _download_pack_github(owner, repo, tag, tmp):
         f"https://github.com/{owner}/{repo}/archive/refs/tags/{release_tag}.zip"
     )
 
-    spinner(f"Downloading {owner}/{repo} @ {release_tag}")
-    req = Request(zipball_url, headers={"User-Agent": "azalea/0.1"})
-    with urlopen(req) as r:
-        content = r.read()
+    with spinning(f"Downloading {owner}/{repo} @ {release_tag}"):
+        req = Request(zipball_url, headers={"User-Agent": "azalea/0.1"})
+        with urlopen(req, timeout=60) as r:
+            content = r.read()
 
     extract_dir = Path(tmp) / "pack_source"
     extract_dir.mkdir(parents=True, exist_ok=True)
@@ -109,6 +109,19 @@ def _download_pack_github(owner, repo, tag, tmp):
         pack_root = next((d for d in subdirs if (d / "azalea.json").exists()), extract_dir)
 
     return pack_root, release_tag
+
+
+def _required_dependency_ids(version_id, dependency_entries=None):
+    if dependency_entries is None:
+        try:
+            dependency_entries = http_json(f"{API}/version/{version_id}").get("dependencies", [])
+        except Exception:
+            return []
+    return [
+        dep["project_id"]
+        for dep in dependency_entries
+        if dep.get("dependency_type") == "required" and dep.get("project_id")
+    ]
 
 
 def _collect_server_mods(pack_root):
@@ -127,21 +140,6 @@ def _collect_server_mods(pack_root):
     mods = {}
     seen_projects = set()
     processing_projects = set()
-
-    def _required_dependency_ids(version_id, dependency_entries=None):
-        if dependency_entries is None:
-            try:
-                dependency_entries = http_json(f"{API}/version/{version_id}").get(
-                    "dependencies", []
-                )
-            except Exception:
-                return []
-
-        return [
-            dep["project_id"]
-            for dep in dependency_entries
-            if dep.get("dependency_type") == "required" and dep.get("project_id")
-        ]
 
     def _collect_project(project_id, version_id=None):
         if project_id in seen_projects or project_id in processing_projects:
@@ -162,7 +160,8 @@ def _collect_server_mods(pack_root):
                 except Exception:
                     return
             else:
-                version = find_best_version(project_id, mc, loader)
+                with spinning(f"Checking {slug}"):
+                    version = find_best_version(project_id, mc, loader)
                 if not version:
                     return
 
@@ -313,7 +312,8 @@ def _ensure_fabric_api(mod_versions, mods_dir, mc, loader):
         log_err(f"Failed to resolve fabric-api project: {e}")
         sys.exit(1)
 
-    version = find_best_version(project["id"], mc, loader)
+    with spinning("Resolving fabric-api version"):
+        version = find_best_version(project["id"], mc, loader)
     if not version:
         log_err(f"No compatible fabric-api version for Minecraft {mc} / {loader}")
         sys.exit(1)
@@ -330,21 +330,6 @@ def _download_server_mods(pack_root, mods_dir, mc, loader):
     mod_versions = {}
     seen_projects = set()
     processing_projects = set()
-
-    def _required_dependency_ids(version_id, dependency_entries=None):
-        if dependency_entries is None:
-            try:
-                dependency_entries = http_json(f"{API}/version/{version_id}").get(
-                    "dependencies", []
-                )
-            except Exception:
-                return []
-
-        return [
-            dep["project_id"]
-            for dep in dependency_entries
-            if dep.get("dependency_type") == "required" and dep.get("project_id")
-        ]
 
     def _download_project(project_id, version_id=None):
         if project_id in seen_projects or project_id in processing_projects:
@@ -367,7 +352,8 @@ def _download_server_mods(pack_root, mods_dir, mc, loader):
                     log_warn(f"Skipped {slug}: {e}")
                     return
             else:
-                version = find_best_version(project_id, mc, loader)
+                with spinning(f"Resolving {slug}"):
+                    version = find_best_version(project_id, mc, loader)
                 if not version:
                     log_warn(f"No compatible version for dependency {slug}")
                     return
@@ -439,8 +425,9 @@ def _build(pack_root, source, installed_tag, accept_eula):
         f"https://meta.fabricmc.net/v2/versions/loader"
         f"/{mc}/{loader_version}/{installer_version}/server/jar"
     )
-    spinner(f"Downloading Fabric {loader_version} server jar")
-    if not download_file(fabric_url, server_dir / "server.jar"):
+    with spinning(f"Downloading Fabric {loader_version} server jar"):
+        result = download_file(fabric_url, server_dir / "server.jar")
+    if not result:
         log_err("Failed to download server jar")
         sys.exit(1)
     log_ok("Downloaded server.jar")
