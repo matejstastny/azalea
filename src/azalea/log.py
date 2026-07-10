@@ -18,19 +18,19 @@ class Log:
 
 
 def log_info(msg):
-    print(f"{Log.CYAN} {msg}{Log.RESET}")
+    print(f"{Log.CYAN} {msg}{Log.RESET}")
 
 
 def log_ok(msg):
-    print(f"{Log.GREEN} {msg}{Log.RESET}")
+    print(f"{Log.GREEN} {msg}{Log.RESET}")
 
 
 def log_warn(msg):
-    print(f"{Log.YELLOW} {msg}{Log.RESET}")
+    print(f"{Log.YELLOW} {msg}{Log.RESET}")
 
 
 def log_err(msg):
-    print(f"{Log.RED} {msg}{Log.RESET}")
+    print(f"{Log.RED} {msg}{Log.RESET}")
 
 
 def log_deb(msg):
@@ -41,6 +41,18 @@ def clear_lines(n):
     for _ in range(n):
         sys.stdout.write("\033[1A")
         sys.stdout.write("\033[2K")
+    sys.stdout.flush()
+
+
+def save_cursor():
+    """Save the current cursor position so it can be restored later."""
+    sys.stdout.write("\033[s")
+    sys.stdout.flush()
+
+
+def restore_cursor_clear():
+    """Restore cursor to the last saved position and erase everything below."""
+    sys.stdout.write("\033[u\033[J")
     sys.stdout.flush()
 
 
