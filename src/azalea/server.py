@@ -467,6 +467,15 @@ def _build(pack_root, source, installed_tag, accept_eula):
     save_json(server_dir / SERVER_CONFIG_FILE, server_config)
     log_ok(f"Server built → {server_dir}")
 
+    post_build = server_config["run"].get("post_build")
+    if post_build:
+        log_info(f"Running post-build script: {post_build}")
+        result = subprocess.run(post_build, shell=True, cwd=server_dir)
+        if result.returncode != 0:
+            log_warn(f"Post-build script exited with code {result.returncode}")
+        else:
+            log_ok("Post-build script completed")
+
 
 # ---------------------------------------------------------------------------
 # Public commands

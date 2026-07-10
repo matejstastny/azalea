@@ -32,17 +32,20 @@ pipx install git+https://github.com/matejstastny/azalea.git
 ## Quick start
 
 ```bash
-azalea init              # create azalea.json in the current directory
-azalea add sodium        # install a mod by slug or search term
-azalea list              # show all installed content
-azalea export            # build a .mrpack archive in dist/
+azalea init                                      # interactive setup
+azalea init --yes                                # non-interactive, all defaults
+azalea init --mc 1.21.1 --loader neoforge        # non-interactive, specific values
+azalea add sodium                                # install a mod by slug or search term
+azalea list                                      # show all installed content
+azalea export                                    # build a .mrpack archive in dist/
 ```
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `azalea init` | Initialise a new pack in the current directory |
+| `azalea init` | Initialise a new pack interactively |
+| `azalea init --yes` | Non-interactive init with defaults (`--mc`, `--loader`, `--name`, `--author`, `--pack-version`, `--license` to override) |
 | `azalea list` | List all installed mods, resource packs, and shaders |
 | `azalea add <slug>` | Add a mod, resource pack, or shader from Modrinth |
 | `azalea add -f <file>` | Batch install from a text file (one slug per line) |
@@ -59,6 +62,8 @@ azalea export            # build a .mrpack archive in dist/
 | `azalea export` | Export a `.mrpack` archive to `dist/` |
 | `azalea export --client` | Export client-only content (skips server-side mods) |
 | `azalea readme` | Regenerate the mod table in your project `README.md` |
+| `azalea prism` | Export the pack and open it in Prism Launcher |
+| `azalea prism --client` | Export client-only and open in Prism Launcher |
 
 ## Server
 
@@ -91,6 +96,14 @@ azalea server logs       # tail logs/latest.log
 | `azalea server unpin` | Remove the pin and track the latest release |
 
 The source URL accepts an optional `@tag` suffix to pin on first install. Run config (RAM, JVM flags, game args) is stored in `azalea-server.json` and survives updates.
+
+You can add a `"post_build"` field to the `run` section to run a shell script at the end of every `init` and `update`. Useful for copying extra files, restarting a service, or sending a notification:
+
+```json
+"run": {
+  "post_build": "./post-build.sh"
+}
+```
 
 <details>
 <summary>File format</summary>
@@ -142,7 +155,8 @@ The same structure is used for resource packs (`resourcepacks/`) and shaders (`s
     "java_bin": "java",
     "jvm_args": [],
     "game_args": ["nogui"],
-    "jar_name": "server.jar"
+    "jar_name": "server.jar",
+    "post_build": "./post-build.sh"
   }
 }
 ```

@@ -21,6 +21,8 @@ from azalea.commands import (
     upgrade,
 )
 from azalea.log import log_err, print_version
+from azalea.minecraft import SUPPORTED_LOADERS
+from azalea.prism import prism_import
 from azalea.server import (
     server_diff,
     server_info,
@@ -44,7 +46,16 @@ def main():
         help="Show version information and exit",
     )
 
-    sub.add_parser("init")
+    ini = sub.add_parser("init", help="Initialise a new pack in the current directory")
+    ini.add_argument("-y", "--yes", action="store_true", help="Non-interactive, use defaults")
+    ini.add_argument("--name", help="Pack name (default: My Pack)")
+    ini.add_argument("--author", help="Author")
+    ini.add_argument(
+        "--pack-version", dest="pack_version", default=None, help="Pack version (default: 0.1.0)"
+    )
+    ini.add_argument("--license", dest="pack_license", help="License")
+    ini.add_argument("--mc", help="Minecraft version or 'latest' (default: latest)")
+    ini.add_argument("--loader", choices=SUPPORTED_LOADERS, help="Mod loader (default: fabric)")
 
     sub.add_parser("list", help="List installed mods, resource packs, and shaders")
 
@@ -115,6 +126,20 @@ def main():
     unpin = sub.add_parser("unpin", help="Remove a pin from a mod")
     unpin.add_argument("slug", help="Mod slug")
 
+    prism = sub.add_parser("prism", help="Export the pack and open it in Prism Launcher")
+    prism.add_argument(
+        "-c",
+        "--client",
+        action="store_true",
+        help="Export client-side content only (skips server-side mods)",
+    )
+    prism.add_argument(
+        "--tag",
+        default="azalea-dev",
+        metavar="TAG",
+        help="Label appended to the instance name in Prism (default: azalea-dev)",
+    )
+
     sv = sub.add_parser("server", help="Manage a Minecraft server built from an Azalea pack")
     sv_sub = sv.add_subparsers(dest="server_cmd")
 
@@ -149,7 +174,15 @@ def main():
         if args.version:
             print_version()
         elif args.cmd == "init":
-            init()
+            init(
+                yes=args.yes,
+                name=args.name,
+                author=args.author,
+                pack_version=args.pack_version,
+                pack_license=args.pack_license,
+                mc=args.mc,
+                loader=args.loader,
+            )
         elif args.cmd == "list":
             list_installed()
         elif args.cmd == "add":
@@ -186,6 +219,8 @@ def main():
             pin_mod(args.slug)
         elif args.cmd == "unpin":
             unpin_mod(args.slug)
+        elif args.cmd == "prism":
+            prism_import(client_only=args.client, tag=args.tag)
         elif args.cmd == "server":
             if args.server_cmd == "init":
                 server_init(args.source)

@@ -12,6 +12,7 @@ from azalea.config import (
     BASE,
     CLIENT_OVERRIDES,
     CONFIG,
+    ICON,
     MODS,
     PRESETS_OVERRIDES,
     RESOURCEPACKS,
@@ -443,6 +444,8 @@ def export(client_only: bool = False):
                             SHARED_OVERRIDES, CLIENT_OVERRIDES
                         ).items():
                             inner_zip.write(file, f"overrides/{rel}")
+                        if ICON.exists():
+                            inner_zip.write(ICON, "pack.png")
                         try:
                             options_content = preset_file.read_text()
                         except Exception:
@@ -450,13 +453,17 @@ def export(client_only: bool = False):
                         inner_zip.writestr("overrides/options.txt", options_content)
                     outer_zip.writestr(inner_filename, buf.getvalue())
         log_ok(f"Exported {outer_path}")
+        return outer_path
     else:
         with spinning("Building mrpack archive"):
             with zipfile.ZipFile(path, "w") as z:
                 z.writestr("modrinth.index.json", json.dumps(manifest, indent=2))
                 for rel, file in _collect_overrides(SHARED_OVERRIDES, CLIENT_OVERRIDES).items():
                     z.write(file, f"overrides/{rel}")
+                if ICON.exists():
+                    z.write(ICON, "pack.png")
         log_ok(f"Exported {path}")
+        return path
 
 
 _LETTERS = "abcdefghijklmnopqrstuvwxyz"
@@ -571,12 +578,60 @@ def _pick_loader() -> str:
         return loader
 
 
-def init():
+def init(
+    yes: bool = False,
+    name: str | None = None,
+    author: str | None = None,
+    pack_version: str | None = None,
+    pack_license: str | None = None,
+    mc: str | None = None,
+    loader: str | None = None,
+):
     if CONFIG.exists():
         log_warn("Already initialized")
         return
 
     ensure_pack_dirs()
+
+    non_interactive = yes or any(
+        v is not None for v in [name, author, pack_version, pack_license, mc, loader]
+    )
+
+    if non_interactive:
+        if mc:
+            with spinning(f"Resolving MC {mc}"):
+                mc_version = resolve_target_mc(mc)
+        else:
+            with spinning("Fetching latest Minecraft version"):
+                mc_version = get_latest_release_version() or ""
+            if not mc_version:
+                log_err("Could not fetch latest Minecraft version")
+                return
+            log_info(f"Using latest Minecraft {mc_version}")
+
+        target_loader = loader or "fabric"
+
+        with spinning(f"Resolving {target_loader} loader version"):
+            loader_version = get_latest_loader_version(target_loader, mc_version) or ""
+        if loader_version:
+            log_info(f"Using {target_loader} {loader_version}")
+        else:
+            log_warn(f"Could not resolve {target_loader} loader version for Minecraft {mc_version}")
+
+        data = {
+            "name": name or "My Pack",
+            "author": author or "",
+            "version": pack_version or "0.1.0",
+            "license": pack_license or "",
+            "minecraft_version": mc_version,
+            "loader": target_loader,
+            "loader_version": loader_version,
+        }
+        save_json(CONFIG, data)
+        log_ok(
+            f"Initialized · {data['name']} · MC {mc_version} · {target_loader} {loader_version or '?'}"
+        )
+        return
 
     with spinning("Fetching Minecraft versions"):
         releases = get_release_versions()
@@ -611,15 +666,14 @@ def init():
     log_ok(summary)
 
     mc_version = _pick_mc_version(releases)
-    loader = _pick_loader()
+    target_loader = _pick_loader()
 
-    with spinning(f"Resolving {loader} loader version"):
-        loader_version = get_latest_loader_version(loader, mc_version)
+    with spinning(f"Resolving {target_loader} loader version"):
+        loader_version = get_latest_loader_version(target_loader, mc_version) or ""
     if loader_version:
-        log_info(f"Using {loader} {loader_version}")
+        log_info(f"Using {target_loader} {loader_version}")
     else:
-        loader_version = ""
-        log_warn(f"Could not resolve {loader} loader version for Minecraft {mc_version}")
+        log_warn(f"Could not resolve {target_loader} loader version for Minecraft {mc_version}")
 
     data = {
         "name": name,
@@ -627,12 +681,12 @@ def init():
         "version": version,
         "license": license_,
         "minecraft_version": mc_version,
-        "loader": loader,
+        "loader": target_loader,
         "loader_version": loader_version,
     }
 
     save_json(CONFIG, data)
-    log_ok(f"Initialized · {name} · MC {mc_version} · {loader} {loader_version or '?'}")
+    log_ok(f"Initialized · {name} · MC {mc_version} · {target_loader} {loader_version or '?'}")
 
 
 def upgrade(target_mc_arg=None):
