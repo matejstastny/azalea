@@ -11,16 +11,10 @@
         }
     },
     "files.exclude": {
-        // Default
-        "**/.git": true,
-        "**/.svn": true,
-        "**/.hg": true,
-        "**/.DS_Store": true,
-        "**/Thumbs.db": true,
-        "**/CVS": true,
-        // Python
         "**/azalea.egg-info": true,
         "**/__pycache__": true,
-        "**/.ruff_cache": true
+        "**/.ruff_cache": true,
+        "**/.mypy_cache": true,
+        "**/.venv": true
     },
 }
